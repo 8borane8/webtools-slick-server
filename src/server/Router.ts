@@ -7,6 +7,7 @@ import { Compiler } from "./Compiler.tsx";
 
 import { HttpMethods, type HttpRequest, type HttpResponse, HttpServer } from "@webtools/expressapi";
 import * as esbuild from "esbuild";
+import * as path from "@std/path";
 import * as fs from "@std/fs";
 
 export class Router {
@@ -47,17 +48,22 @@ export class Router {
 		const onrequest = await this.onrequest(req, template, page);
 		if (onrequest != null) return res.redirect(onrequest);
 
-		res.setHeader("Content-Type", "text/html");
-		return res.send(await this.compiler.createDOM(req, template, page));
+		return res.type("html").send(await this.compiler.createDOM(req, template, page));
 	}
 
 	private async postRequestListener(req: HttpRequest, res: HttpResponse, page: Page): Promise<Response> {
+		if (page.onpost == null) {
+			return res.status(405).json({
+				success: false,
+				error: "405 Method Not Allowed.",
+			});
+		}
+
 		const template = this.templatesManager.getTemplate(page.template)!;
 		const onrequest = await this.onrequest(req, template, page);
 		if (onrequest != null) return res.redirect(onrequest);
 
-		const response = page.onpost == null ? undefined : await page.onpost(req, res);
-		return response || res.status(405).json({
+		return await page.onpost(req, res) || res.status(405).json({
 			success: false,
 			error: "405 Method Not Allowed.",
 		});
@@ -72,20 +78,19 @@ export class Router {
 		}
 
 		if (req.method == HttpMethods.GET) {
-			const filePath = `${this.workspace}/static/${req.url}`;
-			if (fs.existsSync(filePath) && Deno.statSync(filePath).isFile) {
+			const staticPath = `${this.workspace}/static`;
+			const filePath = path.normalize(path.join(staticPath, req.url));
+
+			if (filePath.startsWith(staticPath) && fs.existsSync(filePath) && Deno.statSync(filePath).isFile) {
 				const ext = filePath.split(".").at(-1)!;
 				if (ext == "js" || ext == "ts") {
 					const output = esbuild.transformSync(Deno.readTextFileSync(filePath), {
 						loader: ext,
 						format: "esm",
 						minify: true,
-						target: "es2017",
 					});
 
-					res.setHeader("Content-Type", "application/javascript");
-					res.setHeader("Content-Length", output.code.length.toString());
-					return res.send(output.code);
+					return res.type(ext).size(output.code.length).send(output.code);
 				}
 
 				return res.sendFile(filePath);

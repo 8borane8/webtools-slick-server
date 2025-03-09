@@ -1,13 +1,13 @@
 {
 	"name": "@webtools/slick-server",
-	"version": "0.1.0",
 	"exports": "./src/mod.ts",
+	"version": "0.2.0",
 
 	"lock": false,
 	"imports": {
-		"@webtools/expressapi": "jsr:@webtools/expressapi@^0.3.1",
-		"@std/path": "jsr:@std/path@^1.0.2",
-		"@std/fs": "jsr:@std/fs@^1.0.1",
+		"@webtools/expressapi": "jsr:@webtools/expressapi@^0.4.1",
+		"@std/path": "jsr:@std/path@^1.0.8",
+		"@std/fs": "jsr:@std/fs@^1.0.14",
 
 		"preact-render-to-string": "npm:preact-render-to-string@^6.5.9",
 		"esbuild": "npm:esbuild@^0.23.1",

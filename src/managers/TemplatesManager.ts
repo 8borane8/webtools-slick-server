@@ -6,10 +6,8 @@ import * as fs from "@std/fs";
 export class TemplatesManager {
 	private readonly templates: Array<Template> = [];
 
-	constructor(private readonly workspace: string) {}
-
-	public async load(): Promise<void> {
-		for (const walkEntry of fs.walkSync(`${this.workspace}/templates`, { includeDirs: false })) {
+	public async load(workspace: string): Promise<void> {
+		for (const walkEntry of fs.walkSync(`${workspace}/templates`, { includeDirs: false })) {
 			const dynamicImport = await import(path.toFileUrl(walkEntry.path).toString());
 			const template: Template = dynamicImport.default;
 

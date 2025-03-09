@@ -5,37 +5,21 @@ import { Router } from "./server/Router.ts";
 
 import * as fs from "@std/fs";
 
-const defaultConfig: Config = {
-	port: 5000,
-	lang: "en",
-	r404: "/",
-};
-
 export class Slick {
-	private static readonly requiredDirectories: Array<string> = ["templates", "pages", "static"];
+	private static readonly requiredDirectories: Array<string> = ["templates", "static", "pages"];
 
-	private readonly config: Config;
-
-	private readonly templatesManager: TemplatesManager;
-	private readonly pagesManager: PagesManager;
+	private readonly templatesManager: TemplatesManager = new TemplatesManager();
+	private readonly pagesManager: PagesManager = new PagesManager();
 	private readonly router: Router;
 
-	constructor(private readonly workspace: string, config: Partial<Config> = defaultConfig) {
-		this.config = {
-			...defaultConfig,
-			...config,
-		};
-
-		this.templatesManager = new TemplatesManager(this.workspace);
-		this.pagesManager = new PagesManager(this.workspace);
-
+	constructor(private readonly workspace: string, private readonly config: Config) {
 		this.router = new Router(this.workspace, this.config, this.templatesManager, this.pagesManager);
 	}
 
 	public async start(): Promise<void> {
 		this.preventConfigurationErrors();
-		await this.templatesManager.load();
-		await this.pagesManager.load();
+		await this.templatesManager.load(this.workspace);
+		await this.pagesManager.load(this.workspace);
 		this.preventErrors();
 
 		this.router.registerRequestListeners();

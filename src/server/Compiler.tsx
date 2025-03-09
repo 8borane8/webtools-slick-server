@@ -4,12 +4,12 @@ import type { Page } from "../interfaces/Page.ts";
 
 import { renderToString } from "preact-render-to-string";
 import type { HttpRequest } from "@webtools/expressapi";
-import type { VNode } from "preact";
+import type preact from "preact";
 
 export class Compiler {
 	constructor(private readonly lang: string) {}
 
-	async compile(req: HttpRequest, render: Render | VNode): Promise<VNode> {
+	async compile(req: HttpRequest, render: Render | preact.VNode): Promise<preact.VNode> {
 		return render instanceof Function ? await render(req) : render;
 	}
 
@@ -54,33 +54,5 @@ export class Compiler {
 		);
 
 		return `<!DOCTYPE html>${html}`;
-	}
-
-	async createOBJ(req: HttpRequest, template: Template, page: Page): Promise<object> {
-		const templateHead = await this.compile(req, template.head);
-		const pageHead = await this.compile(req, page.head);
-
-		const templateBody = await this.compile(req, template.body);
-		const pageBody = await this.compile(req, page.body);
-
-		return {
-			url: page.url,
-			title: page.title,
-			favicon: template.favicon,
-
-			template: req.body.template == page.template ? null : {
-				name: template.name,
-				styles: template.styles,
-				scripts: template.scripts,
-				head: renderToString(templateHead),
-				body: renderToString(templateBody),
-			},
-			page: {
-				styles: page.styles,
-				scripts: page.scripts,
-				head: renderToString(pageHead),
-				body: renderToString(pageBody),
-			},
-		};
 	}
 }

@@ -6,10 +6,8 @@ import * as fs from "@std/fs";
 export class PagesManager {
 	private readonly pages: Array<Page> = [];
 
-	constructor(private readonly workspace: string) {}
-
-	public async load(): Promise<void> {
-		for (const walkEntry of fs.walkSync(`${this.workspace}/pages`, { includeDirs: false })) {
+	public async load(workspace: string): Promise<void> {
+		for (const walkEntry of fs.walkSync(`${workspace}/pages`, { includeDirs: false })) {
 			const dynamicImport = await import(path.toFileUrl(walkEntry.path).toString());
 			const page: Page = dynamicImport.default;
 
