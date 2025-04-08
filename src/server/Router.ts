@@ -90,7 +90,7 @@ export class Router {
 						minify: true,
 					});
 
-					return res.type(ext).size(output.code.length).send(output.code);
+					return res.setHeader("Content-Type", "text/javascript").size(output.code.length).send(output.code);
 				}
 
 				return res.sendFile(filePath);
