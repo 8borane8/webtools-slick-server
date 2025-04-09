@@ -82,4 +82,26 @@ export class Compiler {
 
 		return `<!DOCTYPE html>${html}`;
 	}
+
+	async createDIC(req: HttpRequest, template: Template, page: Page): Promise<object> {
+		return {
+			url: req.url,
+			title: page.title,
+			favicon: template.favicon,
+
+			template: req.body.template == page.template ? null : {
+				name: template.name,
+				styles: template.styles,
+				scripts: template.scripts,
+				head: renderToString(await this.compile(req, template.head)),
+				body: renderToString(await this.compile(req, template.body)),
+			},
+			page: {
+				styles: page.styles,
+				scripts: page.scripts,
+				head: renderToString(await this.compile(req, page.head)),
+				body: renderToString(await this.compile(req, page.body)),
+			},
+		};
+	}
 }
