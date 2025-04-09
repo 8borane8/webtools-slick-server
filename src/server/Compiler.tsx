@@ -62,11 +62,21 @@ export class Compiler {
 					{this.config.client
 						? (
 							<>
-								<script type="importmap">
-									{`{ "imports": { "@webtools/slick-client": "https://esm.sh/jsr/@webtools/slick-client" } }`}
+								<script
+									type="importmap"
+									dangerouslySetInnerHTML={{
+										__html:
+											`{ "imports": { "@webtools/slick-client": "https://esm.sh/jsr/@webtools/slick-client" } }`,
+									}}
+								>
 								</script>
-								<script type="module">
-									{`import { Slick } from "@webtools/slick-client"; Slick.initialize("${template.name}");`}
+								<script
+									type="module"
+									dangerouslySetInnerHTML={{
+										__html:
+											`import { Slick } from "@webtools/slick-client"; Slick.initialize("${template.name}");`,
+									}}
+								>
 								</script>
 
 								{template.scripts.map((s) => <script src={s} type="module" slick-type="template" />)}
