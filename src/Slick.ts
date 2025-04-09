@@ -11,8 +11,16 @@ export class Slick {
 	private readonly templatesManager: TemplatesManager = new TemplatesManager();
 	private readonly pagesManager: PagesManager = new PagesManager();
 	private readonly router: Router;
+	private readonly config: Config;
 
-	constructor(private readonly workspace: string, private readonly config: Config) {
+	constructor(private readonly workspace: string, config: Partial<Config>) {
+		this.config = {
+			port: config.port || 5000,
+			lang: config.lang || "en",
+			r404: config.r404 || "/",
+			client: config.client || false,
+		};
+
 		this.router = new Router(this.workspace, this.config, this.templatesManager, this.pagesManager);
 	}
 

@@ -23,7 +23,7 @@ export class Router {
 		private readonly pagesManager: PagesManager,
 	) {
 		this.httpServer = new HttpServer(this.config.port);
-		this.compiler = new Compiler(this.config.lang);
+		this.compiler = new Compiler(this.config);
 	}
 
 	public registerRequestListeners(): void {

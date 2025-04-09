@@ -1,4 +1,5 @@
 import type { Template } from "../interfaces/Template.ts";
+import type { Config } from "../interfaces/Config.ts";
 import type { Render } from "../interfaces/Render.ts";
 import type { Page } from "../interfaces/Page.ts";
 
@@ -7,7 +8,7 @@ import type { HttpRequest } from "@webtools/expressapi";
 import type preact from "preact";
 
 export class Compiler {
-	constructor(private readonly lang: string) {}
+	constructor(private readonly config: Config) {}
 
 	async compile(req: HttpRequest, render: Render | preact.VNode): Promise<preact.VNode> {
 		return render instanceof Function ? await render(req) : render;
@@ -26,7 +27,7 @@ export class Compiler {
 		);
 
 		const html = renderToString(
-			<html lang={this.lang}>
+			<html lang={this.config.lang}>
 				<head>
 					{templateHead}
 
@@ -38,8 +39,19 @@ export class Compiler {
 						content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
 					/>
 
-					{template.styles.map((s) => <link rel="stylesheet" href={s} />)}
-					{page.styles.map((s) => <link rel="stylesheet" href={s} />)}
+					{this.config.client
+						? (
+							<>
+								{template.styles.map((s) => <link rel="stylesheet" href={s} slick-type="template" />)}
+								{page.styles.map((s) => <link rel="stylesheet" href={s} slick-type="page" />)}
+							</>
+						)
+						: (
+							<>
+								{template.styles.map((s) => <link rel="stylesheet" href={s} />)}
+								{page.styles.map((s) => <link rel="stylesheet" href={s} />)}
+							</>
+						)}
 
 					<link rel="shortcut icon" href={template.favicon} />
 					{pageHead}
@@ -47,8 +59,23 @@ export class Compiler {
 				<body>
 					<div id="root" dangerouslySetInnerHTML={{ __html: combinedBody }}></div>
 
-					{template.scripts.map((s) => <script src={s} type="module" />)}
-					{page.scripts.map((s) => <script src={s} type="module" />)}
+					{this.config.client
+						? (
+							<>
+								<script type="importmap">
+									{`{"imports":{"@webtools/slick-client":"https://esm.sh/jsr/@webtools/slick-client"}}`}
+								</script>
+
+								{template.scripts.map((s) => <script src={s} type="module" slick-type="template" />)}
+								{page.scripts.map((s) => <script src={s} type="module" slick-type="page" />)}
+							</>
+						)
+						: (
+							<>
+								{template.scripts.map((s) => <script src={s} type="module" />)}
+								{page.scripts.map((s) => <script src={s} type="module" />)}
+							</>
+						)}
 				</body>
 			</html>,
 		);
