@@ -52,7 +52,7 @@ export class Router {
 	}
 
 	private async postRequestListener(req: HttpRequest, res: HttpResponse, page: Page): Promise<Response> {
-		if (this.config.client && req.headers.has("user-agent") && req.headers.get("user-agent") == "slick-client") {
+		if (this.config.client && req.body.agent == "slick-client") {
 			const template = this.templatesManager.getTemplate(page.template)!;
 			const onrequest = await this.onrequest(req, template, page);
 			if (onrequest != null) return res.redirect(onrequest);
