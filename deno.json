@@ -1,7 +1,8 @@
 {
 	"name": "@webtools/slick-server",
 	"exports": "./src/mod.ts",
-	"version": "0.2.8",
+	"version": "0.2.9",
+	"license": "MIT",
 
 	"lock": false,
 	"imports": {
