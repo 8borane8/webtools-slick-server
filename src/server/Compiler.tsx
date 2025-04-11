@@ -66,7 +66,7 @@ export class Compiler {
 									type="importmap"
 									dangerouslySetInnerHTML={{
 										__html:
-											`{ "imports": { "@webtools/slick-client": "https://esm.sh/jsr/@webtools/slick-client@0.1.3" } }`,
+											`{ "imports": { "@webtools/slick-client": "https://esm.sh/jsr/@webtools/slick-client" } }`,
 									}}
 								>
 								</script>
