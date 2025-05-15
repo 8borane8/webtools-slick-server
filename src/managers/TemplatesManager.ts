@@ -7,7 +7,7 @@ export class TemplatesManager {
 	private readonly templates: Array<Template> = [];
 
 	public async load(workspace: string): Promise<void> {
-		for (const walkEntry of fs.walkSync(`${workspace}/templates`, { includeDirs: false })) {
+		for (const walkEntry of fs.walkSync(path.join(workspace, "templates"), { includeDirs: false })) {
 			const dynamicImport = await import(path.toFileUrl(walkEntry.path).toString());
 			const template: Template = dynamicImport.default;
 

@@ -3,6 +3,7 @@ import { PagesManager } from "./managers/PagesManager.ts";
 import type { Config } from "./interfaces/Config.ts";
 import { Router } from "./server/Router.ts";
 
+import * as path from "@std/path";
 import * as fs from "@std/fs";
 
 export class Slick {
@@ -43,7 +44,7 @@ export class Slick {
 		}
 
 		for (const directory of Slick.requiredDirectories) {
-			if (!fs.existsSync(`${this.workspace}/${directory}`)) {
+			if (!fs.existsSync(path.join(this.workspace, directory))) {
 				throw new Error(`The directory '${directory}' does not exist.`);
 			}
 		}

@@ -86,7 +86,7 @@ export class Router {
 		}
 
 		if (req.method == HttpMethods.GET) {
-			const staticPath = `${this.workspace}/static`;
+			const staticPath = path.join(this.workspace, "static");
 			const filePath = path.normalize(path.join(staticPath, req.url));
 
 			if (filePath.startsWith(staticPath) && fs.existsSync(filePath) && Deno.statSync(filePath).isFile) {
