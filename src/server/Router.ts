@@ -92,8 +92,8 @@ export class Router {
 		}
 
 		if (req.method == HttpMethods.GET) {
-			const staticPath = path.resolve(this.workspace, "static");
-			const filePath = path.resolve(staticPath, req.url);
+			const staticPath = path.join(this.workspace, "static");
+			const filePath = path.join(staticPath, req.url.slice(1));
 
 			if (filePath.startsWith(staticPath) && fs.existsSync(filePath) && Deno.statSync(filePath).isFile) {
 				const ext = filePath.split(".").at(-1);
