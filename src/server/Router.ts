@@ -83,7 +83,7 @@ export class Router {
 		});
 	}
 
-	private async requestListener(req: HttpRequest, res: HttpResponse): Promise<Response> {
+	private requestListener(req: HttpRequest, res: HttpResponse): Response {
 		if (![HttpMethods.GET, HttpMethods.POST].includes(req.method)) {
 			return res.status(405).json({
 				success: false,
@@ -100,13 +100,6 @@ export class Router {
 				if (ext && Object.keys(Router.contentTypes).includes(ext)) {
 					const fileBytes = Deno.readFileSync(filePath);
 
-					const etagBuffer = await crypto.subtle.digest("SHA-256", fileBytes);
-					const etagArray = Array.from(new Uint8Array(etagBuffer));
-					const etag = `W/"${etagArray.map((byte) => byte.toString(16).padStart(2, "0")).join("")}"`;
-					if (req.headers.get("If-None-Match")?.split(",").map((tag) => tag.trim()).includes(etag)) {
-						return res.status(304).send(null);
-					}
-
 					const output = esbuild.transformSync(fileBytes, {
 						loader: ext as esbuild.Loader,
 						minify: true,
@@ -114,8 +107,6 @@ export class Router {
 					});
 
 					return res.setHeader("Content-Type", Router.contentTypes[ext])
-						.setHeader("Cache-Control", "public, max-age=31536000")
-						.setHeader("ETag", etag)
 						.size(output.code.length)
 						.send(output.code);
 				}
