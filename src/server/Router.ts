@@ -102,7 +102,7 @@ export class Router {
 
 					const etagBuffer = await crypto.subtle.digest("SHA-256", fileBytes);
 					const etagArray = Array.from(new Uint8Array(etagBuffer));
-					const etag = `"${etagArray.map((byte) => byte.toString(16).padStart(2, "0")).join("")}"`;
+					const etag = `W/"${etagArray.map((byte) => byte.toString(16).padStart(2, "0")).join("")}"`;
 					if (req.headers.get("If-None-Match")?.split(",").map((tag) => tag.trim()).includes(etag)) {
 						return res.status(304).send(null);
 					}
