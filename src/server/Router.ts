@@ -6,12 +6,18 @@ import type { Page } from "../interfaces/Page.ts";
 import { Compiler } from "./Compiler.tsx";
 
 import { HttpMethods, type HttpRequest, type HttpResponse, HttpServer } from "@webtools/expressapi";
+import * as expressapi from "@webtools/expressapi";
 import * as esbuild from "esbuild";
 import * as path from "@std/path";
 import * as fs from "@std/fs";
 
 export class Router {
 	public static readonly urlRegex = /^(\/|(?:\/[^\/]+)+)$/;
+	private static readonly contentTypes: Record<string, string> = {
+		js: "text/javascript",
+		ts: "text/javascript",
+		css: "text/css",
+	};
 
 	private readonly httpServer: HttpServer;
 	private readonly compiler: Compiler;
@@ -77,7 +83,7 @@ export class Router {
 		});
 	}
 
-	private requestListener(req: HttpRequest, res: HttpResponse): Response {
+	private async requestListener(req: HttpRequest, res: HttpResponse): Promise<Response> {
 		if (![HttpMethods.GET, HttpMethods.POST].includes(req.method)) {
 			return res.status(405).json({
 				success: false,
@@ -90,15 +96,28 @@ export class Router {
 			const filePath = path.normalize(path.join(staticPath, req.url));
 
 			if (filePath.startsWith(staticPath) && fs.existsSync(filePath) && Deno.statSync(filePath).isFile) {
-				const ext = filePath.split(".").at(-1)!;
-				if (ext == "js" || ext == "ts") {
-					const output = esbuild.transformSync(Deno.readTextFileSync(filePath), {
-						loader: ext,
-						format: "esm",
+				const ext = filePath.split(".").at(-1);
+				if (ext && Object.keys(Router.contentTypes).includes(ext)) {
+					const fileBytes = Deno.readFileSync(filePath);
+
+					const etagBuffer = await crypto.subtle.digest("SHA-256", fileBytes);
+					const etagArray = Array.from(new Uint8Array(etagBuffer));
+					const etag = `"${etagArray.map((byte) => byte.toString(16).padStart(2, "0")).join("")}"`;
+					if (req.headers.get("If-None-Match")?.split(",").map((tag) => tag.trim()).includes(etag)) {
+						return res.status(304).send(null);
+					}
+
+					const output = esbuild.transformSync(fileBytes, {
+						loader: ext as esbuild.Loader,
 						minify: true,
+						format: "esm",
 					});
 
-					return res.setHeader("Content-Type", "text/javascript").size(output.code.length).send(output.code);
+					return res.setHeader("Content-Type", Router.contentTypes[ext])
+						.setHeader("Cache-Control", "public, max-age=31536000")
+						.setHeader("ETag", etag)
+						.size(output.code.length)
+						.send(output.code);
 				}
 
 				return res.sendFile(filePath);
