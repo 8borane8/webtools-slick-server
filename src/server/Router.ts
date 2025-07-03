@@ -6,7 +6,6 @@ import type { Page } from "../interfaces/Page.ts";
 import { Compiler } from "./Compiler.tsx";
 
 import { HttpMethods, type HttpRequest, type HttpResponse, HttpServer } from "@webtools/expressapi";
-import * as expressapi from "@webtools/expressapi";
 import * as esbuild from "esbuild";
 import * as path from "@std/path";
 import * as fs from "@std/fs";
@@ -104,6 +103,7 @@ export class Router {
 						loader: ext as esbuild.Loader,
 						minify: true,
 						format: "esm",
+						define: this.config.env,
 					});
 
 					return res.setHeader("Content-Type", Router.contentTypes[ext])
