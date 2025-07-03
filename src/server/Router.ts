@@ -99,11 +99,15 @@ export class Router {
 				if (ext && Object.keys(Router.contentTypes).includes(ext)) {
 					const fileBytes = Deno.readFileSync(filePath);
 
+					const define = Object.fromEntries(
+						Object.entries(this.config.env).map(([k, v]) => [k, JSON.stringify(v)]),
+					);
+
 					const output = esbuild.transformSync(fileBytes, {
 						loader: ext as esbuild.Loader,
 						minify: true,
 						format: "esm",
-						define: this.config.env,
+						define,
 					});
 
 					return res.setHeader("Content-Type", Router.contentTypes[ext])
