@@ -16,7 +16,7 @@ export class Slick {
 
 	constructor(private readonly workspace: string, config: Partial<Config>) {
 		this.config = {
-			env: {},
+			env: config.env || {},
 			port: config.port || 5000,
 			lang: config.lang || "en",
 			r404: config.r404 || "/",
