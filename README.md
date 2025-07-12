@@ -57,7 +57,8 @@ project-root/
 
 - **pages/**: Contains your page components, each exporting a `Page` object.
 - **templates/**: Contains your template structures, each exporting a `Template` object.
-- **static/**: All files here are served directly as static files. CSS, JS, and TS files are minified automatically, and TS files are natively transpiled.
+- **static/**: All files here are served directly as static files. CSS, JS, and TS files are minified automatically, and
+  TS files are natively transpiled.
 
 ## 📦 Installation
 
