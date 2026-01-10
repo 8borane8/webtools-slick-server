@@ -102,13 +102,16 @@ export class Compiler {
 			title: page.title,
 			favicon: template.favicon,
 
-			template: req.body.template == page.template ? null : {
-				name: template.name,
-				styles: template.styles,
-				scripts: template.scripts,
-				head: renderToString(await this.compile(req, template.head)),
-				body: renderToString(await this.compile(req, template.body)),
-			},
+			template: (req.body && typeof req.body === "object" && "template" in req.body &&
+					req.body.template === page.template)
+				? null
+				: {
+					name: template.name,
+					styles: template.styles,
+					scripts: template.scripts,
+					head: renderToString(await this.compile(req, template.head)),
+					body: renderToString(await this.compile(req, template.body)),
+				},
 			page: {
 				styles: page.styles,
 				scripts: page.scripts,

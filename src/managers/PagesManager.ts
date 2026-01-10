@@ -15,11 +15,11 @@ export class PagesManager {
 		}
 	}
 
-	getPage(url: string): Page | null {
-		return this.pages.find((page) => page.url == url) || null;
+	public getPage(url: string): Page | null {
+		return this.pages.find((page) => page.url === url) || null;
 	}
 
-	getPages(): Array<Page> {
+	public getPages(): Array<Page> {
 		return this.pages;
 	}
 }

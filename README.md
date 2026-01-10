@@ -22,12 +22,12 @@
 
 - Fast and lightweight
 - Easy integration with the Deno ecosystem
-- Built-in support for server-side rendering with templating
-- SEO optimized with efficient rendering strategies
-- Automatic minification of all assets (CSS, JS, TS)
+- Built-in server-side rendering with templating
+- Automatic minification of assets (CSS, JS, TS)
+- SPA capabilities with `@webtools/slick-client`
 - Compatible with modern web standards
-- Supports static file serving
-- With the `@webtools/slick-client` package, enable SPA capabilities, manage cookies, and access various utilities
+- Static file serving
+- SEO optimized
 
 ## 📁 Project Structure
 
@@ -79,8 +79,8 @@ const slick = new Slick(import.meta.dirname!, {
 	env: {
 		API_URL: Deno.env.get("API_URL")!,
 	},
+	port: 5000,
 	lang: "en",
-	port: 3000,
 	r404: "/",
 	client: true,
 });

@@ -15,7 +15,7 @@ export class TemplatesManager {
 		}
 	}
 
-	getTemplate(name: string): Template | null {
-		return this.templates.find((template) => template.name == name) || null;
+	public getTemplate(name: string): Template | null {
+		return this.templates.find((template) => template.name === name) || null;
 	}
 }

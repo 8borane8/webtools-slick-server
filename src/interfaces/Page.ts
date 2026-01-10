@@ -1,6 +1,7 @@
 import type { RequestListener } from "@webtools/expressapi";
 import type { OnRequest } from "./OnRequest.ts";
 import type { Render } from "./Render.ts";
+import type preact from "preact";
 
 export interface Page {
 	readonly url: string;

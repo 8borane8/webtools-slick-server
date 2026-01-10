@@ -57,7 +57,10 @@ export class Router {
 	}
 
 	private async postRequestListener(req: HttpRequest, res: HttpResponse, page: Page): Promise<Response> {
-		if (this.config.client && req.body.agent == "slick-client") {
+		if (
+			this.config.client && req.body && typeof req.body === "object" && "agent" in req.body &&
+			req.body.agent === "slick-client"
+		) {
 			const template = this.templatesManager.getTemplate(page.template)!;
 			const onrequest = await this.onrequest(req, template, page);
 			if (onrequest != null) return res.redirect(onrequest);
@@ -76,7 +79,8 @@ export class Router {
 		const onrequest = await this.onrequest(req, template, page);
 		if (onrequest != null) return res.redirect(onrequest);
 
-		return await page.onpost(req, res) || res.status(405).json({
+		const result = await page.onpost(req, res);
+		return result || res.status(405).json({
 			success: false,
 			error: "405 Method Not Allowed.",
 		});
@@ -90,12 +94,13 @@ export class Router {
 			});
 		}
 
-		if (req.method == HttpMethods.GET) {
-			const staticPath = path.join(this.workspace, "static");
-			const filePath = path.join(staticPath, req.url.slice(1));
+		if (req.method === HttpMethods.GET) {
+			const staticPath = path.resolve(path.join(this.workspace, "static"));
+			const normalizedUrl = path.normalize(req.url.slice(1));
+			const filePath = path.resolve(path.join(staticPath, normalizedUrl));
 
 			if (filePath.startsWith(staticPath) && fs.existsSync(filePath) && Deno.statSync(filePath).isFile) {
-				const ext = filePath.split(".").at(-1);
+				const ext = path.extname(filePath).slice(1);
 				if (ext && Object.keys(Router.contentTypes).includes(ext)) {
 					const fileBytes = Deno.readFileSync(filePath);
 

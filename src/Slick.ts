@@ -52,7 +52,7 @@ export class Slick {
 	}
 
 	private preventErrors(): void {
-		if (!this.pagesManager.getPages().some((page) => page.url == this.config.r404)) {
+		if (!this.pagesManager.getPages().some((page) => page.url === this.config.r404)) {
 			throw new Error(`The 404 page does not exist.`);
 		}
 
