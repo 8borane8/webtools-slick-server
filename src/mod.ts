@@ -1,7 +1,4 @@
-export * from "./interfaces/OnRequest.ts";
-export * from "./interfaces/Template.ts";
-export * from "./interfaces/Config.ts";
-export * from "./interfaces/Render.ts";
-export * from "./interfaces/Page.ts";
+export type { Template } from "./managers/templates.ts";
+export type { Page } from "./managers/pages.ts";
 
-export * from "./Slick.ts";
+export * from "./core/server.ts";

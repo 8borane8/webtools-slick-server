@@ -1,18 +1,26 @@
-import { TemplatesManager } from "./managers/TemplatesManager.ts";
-import { PagesManager } from "./managers/PagesManager.ts";
-import type { Config } from "./interfaces/Config.ts";
-import { Router } from "./server/Router.ts";
+import { TemplatesManager } from "../managers/templates.ts";
+import { PagesManager } from "../managers/pages.ts";
+import { Router } from "./router.ts";
 
 import * as path from "@std/path";
 import * as fs from "@std/fs";
 
+export interface Config {
+	readonly env: Record<string, string>;
+	readonly port: number;
+	readonly lang: string;
+	readonly r404: string;
+	readonly client: boolean;
+}
+
 export class Slick {
 	private static readonly requiredDirectories: Array<string> = ["templates", "static", "pages"];
 
-	private readonly templatesManager: TemplatesManager = new TemplatesManager();
-	private readonly pagesManager: PagesManager = new PagesManager();
-	private readonly router: Router;
+	private readonly templatesManager = new TemplatesManager();
+	private readonly pagesManager = new PagesManager();
+
 	private readonly config: Config;
+	private readonly router: Router;
 
 	constructor(private readonly workspace: string, config: Partial<Config>) {
 		this.config = {
@@ -23,7 +31,12 @@ export class Slick {
 			client: config.client || false,
 		};
 
-		this.router = new Router(this.workspace, this.config, this.templatesManager, this.pagesManager);
+		this.router = new Router(
+			this.workspace,
+			this.config,
+			this.templatesManager,
+			this.pagesManager,
+		);
 	}
 
 	public async start(): Promise<void> {
@@ -32,16 +45,12 @@ export class Slick {
 		await this.pagesManager.load(this.workspace);
 		this.preventErrors();
 
-		this.router.registerRequestListeners();
+		this.router.start();
 	}
 
 	private preventConfigurationErrors(): void {
-		if (!fs.existsSync(this.workspace)) {
-			throw new Error(`The workspace '${this.workspace}' does not exist.`);
-		}
-
-		if (!Router.urlRegex.test(this.config.r404)) {
-			throw new Error(`Invalid redirect 404 url. Please provide a valid format: ${Router.urlRegex}`);
+		if (!fs.existsSync(this.workspace) || !Deno.statSync(this.workspace).isDirectory) {
+			throw new Error(`The workspace '${this.workspace}' is not a valid directory.`);
 		}
 
 		for (const directory of Slick.requiredDirectories) {
@@ -52,12 +61,12 @@ export class Slick {
 	}
 
 	private preventErrors(): void {
-		if (!this.pagesManager.getPages().some((page) => page.url === this.config.r404)) {
+		if (!this.pagesManager.findPage(this.config.r404)) {
 			throw new Error(`The 404 page does not exist.`);
 		}
 
 		for (const page of this.pagesManager.getPages()) {
-			if (this.templatesManager.getTemplate(page.template) == null) {
+			if (!this.templatesManager.findTemplate(page.template)) {
 				throw new Error(`The template '${page.template}' does not exist.`);
 			}
 		}
