@@ -103,7 +103,7 @@ export class Compiler {
 			url: req.url,
 			title: page.title,
 			favicon: template.favicon,
-			template: req.body.template === page.template ? null : {
+			template: req.headers.get("x-slick-template") === page.template ? null : {
 				name: template.name,
 				styles: template.styles,
 				scripts: template.scripts,
