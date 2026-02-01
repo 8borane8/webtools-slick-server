@@ -73,7 +73,7 @@ export class Compiler {
 									type="module"
 									dangerouslySetInnerHTML={{
 										__html:
-											`import { Slick } from "@webtools/slick-client"; Slick.initialize("${template.name}");`,
+											`import { Slick } from "@webtools/slick-client"; Slick.initialize("${template.name}", true);`,
 									}}
 								/>
 								{template.scripts.map((s) => <script src={s} type="module" slick-type="template" />)}
