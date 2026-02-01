@@ -8,9 +8,7 @@ import type { Template } from "../managers/templates.ts";
 import type { Page } from "../managers/pages.ts";
 import type { Config } from "./server.ts";
 
-export type Render =
-	| ((req: HttpRequest) => Promise<preact.VNode> | preact.VNode)
-	| preact.VNode;
+export type Render = ((req: HttpRequest) => Promise<VNode> | VNode) | VNode;
 
 export class Compiler {
 	constructor(private readonly config: Config) {}
