@@ -95,5 +95,7 @@ export class Router {
 
 			return res.sendFile(filePath);
 		}
+
+		return res.redirect(this.config.r404);
 	}
 }
