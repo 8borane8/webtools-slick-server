@@ -46,7 +46,7 @@ Create or update your `deno.json` file with the required configuration:
 ```json
 {
 	"imports": {
-		"@webtools/slick-server": "jsr:@webtools/slick-server@^0.4.0"
+		"@webtools/slick-server": "jsr:@webtools/slick-server@^0.4.2"
 	},
 	"compilerOptions": {
 		"jsxImportSource": "preact",
@@ -71,8 +71,8 @@ And add it to your `deno.json`:
 ```json
 {
 	"imports": {
-		"@webtools/slick-server": "jsr:@webtools/slick-server@^0.4.0",
-		"@webtools/slick-client": "jsr:@webtools/slick-client@^0.2.0"
+		"@webtools/slick-server": "jsr:@webtools/slick-server@^0.4.2",
+		"@webtools/slick-client": "jsr:@webtools/slick-client@^0.2.15"
 	},
 	"compilerOptions": {
 		"jsxImportSource": "preact",
@@ -227,19 +227,19 @@ interface Config {
 	port: number; // Server port (default: 5000)
 	lang: string; // HTML lang attribute (default: "en")
 	r404: string; // 404 redirect URL (default: "/")
-	client: boolean; // Enable SPA mode (default: false)
+	client: boolean | string; // Enable SPA mode (default: false) or custom client URL
 }
 ```
 
 ### Configuration Options
 
-| Option   | Type                     | Default | Description                                                          |
-| -------- | ------------------------ | ------- | -------------------------------------------------------------------- |
-| `env`    | `Record<string, string>` | `{}`    | Environment variables available in static files via `esbuild.define` |
-| `port`   | `number`                 | `5000`  | Port number for the HTTP server                                      |
-| `lang`   | `string`                 | `"en"`  | Language code for the HTML `lang` attribute                          |
-| `r404`   | `string`                 | `"/"`   | URL to redirect to when a page is not found                          |
-| `client` | `boolean`                | `false` | Enable SPA mode with `@webtools/slick-client`                        |
+| Option   | Type                     | Default | Description                                                                                 |
+| -------- | ------------------------ | ------- | ------------------------------------------------------------------------------------------- |
+| `env`    | `Record<string, string>` | `{}`    | Environment variables available in static files via `esbuild.define`                        |
+| `port`   | `number`                 | `5000`  | Port number for the HTTP server                                                             |
+| `lang`   | `string`                 | `"en"`  | Language code for the HTML `lang` attribute                                                 |
+| `r404`   | `string`                 | `"/"`   | URL to redirect to when a page is not found                                                 |
+| `client` | `boolean \| string`      | `false` | Enable SPA mode with `@webtools/slick-client` or provide custom client URL (e.g., CDN link) |
 
 ## 📄 Pages
 
@@ -430,6 +430,7 @@ When `client: true` is enabled, Slick Server integrates with `@webtools/slick-cl
 - Client-side navigation without full page reloads
 - Automatic template and page updates
 - Optimized asset loading
+- Custom client URL support for CDN or local hosting
 
 ### Setup
 
@@ -437,12 +438,21 @@ When `client: true` is enabled, Slick Server integrates with `@webtools/slick-cl
 
 ```ts
 const slick = new Slick(import.meta.dirname!, {
-	client: true,
+	client: true, // Use default client from esm.sh
 	// ... other config
 });
 ```
 
-2. Install the client package in your static scripts:
+2. Or provide a custom client URL (useful for CDN or local development):
+
+```ts
+const slick = new Slick(import.meta.dirname!, {
+	client: "https://cdn.example.com/slick-client.js", // Custom URL
+	// ... other config
+});
+```
+
+3. Install the client package in your static scripts:
 
 ```ts
 // static/scripts/app.ts
@@ -455,6 +465,8 @@ import { Slick } from "@webtools/slick-client";
 ### How It Works
 
 - The server injects `@webtools/slick-client` automatically
+- When `client: true`, the default URL is `https://esm.sh/jsr/@webtools/slick-client@^0.2.15`
+- When `client: "custom-url"`, your custom URL is used instead
 - Pages are loaded via AJAX when navigating
 - Only changed parts (template or page) are updated
 - Full HTML is served on initial load for SEO

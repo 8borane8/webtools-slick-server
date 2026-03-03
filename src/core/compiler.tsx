@@ -65,8 +65,13 @@ export class Compiler {
 								<script
 									type="importmap"
 									dangerouslySetInnerHTML={{
-										__html:
-											`{ "imports": { "@webtools/slick-client": "https://esm.sh/jsr/@webtools/slick-client" } }`,
+										__html: JSON.stringify({
+											"imports": {
+												"@webtools/slick-client": this.config.client === "string"
+													? this.config.client
+													: "https://esm.sh/jsr/@webtools/slick-client@^0.2.15",
+											},
+										}),
 									}}
 								/>
 								<script
