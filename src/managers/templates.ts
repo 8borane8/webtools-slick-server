@@ -1,18 +1,19 @@
 import type { RequestListener } from "@webtools/expressapi";
 import type { Render } from "../core/compiler.tsx";
 
+import type { VNode } from "preact";
 import * as path from "@std/path";
 import * as fs from "@std/fs";
 
 export interface Template {
 	readonly name: string;
-	readonly favicon: string;
+	readonly favicon: Render<string> | null;
 
 	readonly styles: string[];
 	readonly scripts: string[];
 
-	readonly head: Render | null;
-	readonly body: Render | null;
+	readonly head: Render<VNode> | null;
+	readonly body: Render<VNode> | null;
 
 	readonly onrequest: RequestListener | null;
 }

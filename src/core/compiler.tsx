@@ -8,20 +8,21 @@ import type { Template } from "../managers/templates.ts";
 import type { Page } from "../managers/pages.ts";
 import type { Config } from "./server.ts";
 
-export type Render = ((req: HttpRequest) => Promise<VNode> | VNode) | VNode;
+export type Render<T> = ((req: HttpRequest) => Promise<T> | T) | T;
 
 export class Compiler {
 	constructor(private readonly config: Config) {}
 
-	async compile(req: HttpRequest, render: Render | null): Promise<VNode | null> {
+	async compile<T>(req: HttpRequest, render: Render<T> | null): Promise<T | null> {
 		return render instanceof Function ? await render(req) : render;
 	}
 
 	async createDOM(req: HttpRequest, template: Template, page: Page): Promise<string> {
-		const templateHead = await this.compile(req, template.head);
-		const pageHead = await this.compile(req, page.head);
-		const templateBody = await this.compile(req, template.body);
-		const pageBody = await this.compile(req, page.body);
+		const templateHead = await this.compile<VNode>(req, template.head);
+		const templateBody = await this.compile<VNode>(req, template.body);
+
+		const pageHead = await this.compile<VNode>(req, page.head);
+		const pageBody = await this.compile<VNode>(req, page.body);
 
 		const combinedBody = templateBody
 			? renderToString(templateBody).replace(
@@ -30,11 +31,14 @@ export class Compiler {
 			)
 			: "";
 
+		const title = await this.compile<string>(req, page.title) || "";
+		const favicon = await this.compile<string>(req, template.favicon) || "";
+
 		const html = renderToString(
 			<html lang={this.config.lang}>
 				<head>
 					{templateHead}
-					<title>{page.title}</title>
+					<title>{title}</title>
 					<meta charset="UTF-8" />
 					<meta http-equiv="X-UA-Compatible" content="IE=edge" />
 					<meta
@@ -54,7 +58,7 @@ export class Compiler {
 								{page.styles.map((s) => <link rel="stylesheet" href={s} />)}
 							</>
 						)}
-					<link rel="shortcut icon" href={template.favicon} type="image/x-icon" />
+					<link rel="shortcut icon" href={favicon} type="image/x-icon" />
 					{pageHead}
 				</head>
 				<body>
@@ -67,7 +71,7 @@ export class Compiler {
 									dangerouslySetInnerHTML={{
 										__html: JSON.stringify({
 											"imports": {
-												"@webtools/slick-client": this.config.client === "string"
+												"@webtools/slick-client": typeof this.config.client === "string"
 													? this.config.client
 													: "https://esm.sh/jsr/@webtools/slick-client@^0.2.15",
 											},
@@ -99,22 +103,27 @@ export class Compiler {
 	}
 
 	async createDIC(req: HttpRequest, template: Template, page: Page): Promise<object> {
-		const templateHead = await this.compile(req, template.head);
-		const templateBody = await this.compile(req, template.body);
-		const pageHead = await this.compile(req, page.head);
-		const pageBody = await this.compile(req, page.body);
+		const renderTemplate = req.headers.get("x-slick-template") !== page.template;
+
+		const templateHead = renderTemplate ? await this.compile<VNode>(req, template.head) : null;
+		const templateBody = renderTemplate ? await this.compile<VNode>(req, template.body) : null;
+
+		const pageHead = await this.compile<VNode>(req, page.head);
+		const pageBody = await this.compile<VNode>(req, page.body);
 
 		return {
 			url: req.url,
 			title: page.title,
 			favicon: template.favicon,
-			template: req.headers.get("x-slick-template") === page.template ? null : {
-				name: template.name,
-				styles: template.styles,
-				scripts: template.scripts,
-				head: templateHead ? renderToString(templateHead) : "",
-				body: templateBody ? renderToString(templateBody) : "",
-			},
+			template: renderTemplate
+				? {
+					name: template.name,
+					styles: template.styles,
+					scripts: template.scripts,
+					head: templateHead ? renderToString(templateHead) : "",
+					body: templateBody ? renderToString(templateBody) : "",
+				}
+				: null,
 			page: {
 				styles: page.styles,
 				scripts: page.scripts,

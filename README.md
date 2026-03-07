@@ -249,11 +249,11 @@ A `Page` object defines a route and its content:
 interface Page {
 	url: string; // Route URL (must start with /)
 	template: string; // Template name to use
-	title: string; // Page title
+	title: Render<string> | null; // Page title (static or dynamic)
 	styles: string[]; // CSS file paths
 	scripts: string[]; // JS/TS file paths
-	head: Render | null; // Additional head content
-	body: Render | null; // Page body content
+	head: Render<preact.VNode> | null; // Additional head content
+	body: Render<preact.VNode> | null; // Page body content
 	onpost: RequestListener | null; // POST request handler
 	onrequest: RequestListener | null; // Request middleware (use res.redirect() for redirects)
 }
@@ -297,18 +297,18 @@ export default {
 
 ### Render Type
 
-The `head` and `body` properties accept a `Render` type:
+The `title`, `favicon`, `head` and `body` properties accept a generic `Render<T>` type:
 
 ```ts
-type Render =
-	| ((req: HttpRequest) => Promise<preact.VNode> | preact.VNode)
-	| preact.VNode;
+type Render<T> =
+	| ((req: HttpRequest) => Promise<T> | T)
+	| T;
 ```
 
 You can use:
 
-- **Static VNode**: `<div>Hello</div>`
-- **Function**: `(req) => <div>Hello {req.url}</div>`
+- **Static value**: `"My page title"` or `<div>Hello</div>`
+- **Function**: `(req) => \`Hello ${req.url}\` or `(req) => <div>Hello {req.url}</div>`
 - **Async Function**: `async (req) => { const data = await fetchData(); return <div>{data}</div>; }`
 
 ## 🎨 Templates
@@ -318,11 +318,11 @@ A `Template` object defines the page structure:
 ```tsx
 interface Template {
 	name: string; // Unique template name
-	favicon: string; // Favicon path
+	favicon: Render<string> | null; // Favicon path (static or dynamic)
 	styles: string[]; // Global CSS files
 	scripts: string[]; // Global JS/TS files
-	head: Render | null; // Global head content
-	body: Render | null; // Template body (must contain element with id="app")
+	head: Render<preact.VNode> | null; // Global head content
+	body: Render<preact.VNode> | null; // Template body (must contain element with id="app")
 	onrequest: RequestListener | null; // Global request middleware (use res.redirect() for redirects)
 }
 ```
@@ -507,11 +507,11 @@ await slick.start();
 interface Page {
 	readonly url: string;
 	readonly template: string;
-	readonly title: string;
+	readonly title: Render<string> | null;
 	readonly styles: string[];
 	readonly scripts: string[];
-	readonly head: Render | null;
-	readonly body: Render | null;
+	readonly head: Render<preact.VNode> | null;
+	readonly body: Render<preact.VNode> | null;
 	readonly onpost: RequestListener | null;
 	readonly onrequest: RequestListener | null;
 }
@@ -522,11 +522,11 @@ interface Page {
 ```ts
 interface Template {
 	readonly name: string;
-	readonly favicon: string;
+	readonly favicon: Render<string> | null;
 	readonly styles: string[];
 	readonly scripts: string[];
-	readonly head: Render | null;
-	readonly body: Render | null;
+	readonly head: Render<preact.VNode> | null;
+	readonly body: Render<preact.VNode> | null;
 	readonly onrequest: RequestListener | null;
 }
 ```
@@ -534,9 +534,9 @@ interface Template {
 #### `Render`
 
 ```ts
-type Render =
-	| ((req: HttpRequest) => Promise<preact.VNode> | preact.VNode)
-	| preact.VNode;
+type Render<T> =
+	| ((req: HttpRequest) => Promise<T> | T)
+	| T;
 ```
 
 ## 💡 Examples
