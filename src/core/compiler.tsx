@@ -73,7 +73,7 @@ export class Compiler {
 											"imports": {
 												"@webtools/slick-client": typeof this.config.client === "string"
 													? this.config.client
-													: "https://esm.sh/jsr/@webtools/slick-client@^0.2.15",
+													: "https://esm.sh/jsr/@webtools/slick-client@^0.3.0",
 											},
 										}),
 									}}

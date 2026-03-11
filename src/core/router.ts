@@ -3,7 +3,14 @@ import type { Page, PagesManager } from "../managers/pages.ts";
 import type { Config } from "./server.ts";
 import { Compiler } from "./compiler.tsx";
 
-import { HttpMethods, type HttpRequest, type HttpResponse, HttpServer } from "@webtools/expressapi";
+import {
+	HttpMethods,
+	type HttpRequest,
+	type HttpResponse,
+	HttpServer,
+	type RequestListener,
+} from "@webtools/expressapi";
+
 import * as esbuild from "esbuild";
 import * as path from "@std/path";
 import * as fs from "@std/fs";
@@ -46,7 +53,7 @@ export class Router {
 			const middlewares = [template.onrequest, page.onrequest].filter((m) => m != null);
 
 			this.httpServer.get(page.url, (req, res) => this.getRequestListener(req, res, page), middlewares);
-			if (page.onpost) this.httpServer.post(page.url, page.onpost);
+			this.httpServer.post(page.url, (req, res) => this.postRequestListener(req, res, page, middlewares));
 		}
 
 		this.httpServer.notFound(this.requestListener.bind(this));
@@ -55,14 +62,28 @@ export class Router {
 
 	private async getRequestListener(req: HttpRequest, res: HttpResponse, page: Page): Promise<Response> {
 		const template = this.templatesManager.findTemplate(page.template)!;
+		const dom = await this.compiler.createDOM(req, template, page);
+		return res.type("html").send(dom);
+	}
 
+	private async postRequestListener(
+		req: HttpRequest,
+		res: HttpResponse,
+		page: Page,
+		middlewares: RequestListener[],
+	): Promise<Response | void> {
 		if (this.config.client && req.headers.has("x-slick-template")) {
+			for (const middleware of middlewares) {
+				const result = await middleware(req, res);
+				if (result) return result;
+			}
+
+			const template = this.templatesManager.findTemplate(page.template)!;
 			const dic = await this.compiler.createDIC(req, template, page);
 			return res.json(dic);
 		}
 
-		const dom = await this.compiler.createDOM(req, template, page);
-		return res.type("html").send(dom);
+		if (page.onpost) this.httpServer.post(page.url, page.onpost);
 	}
 
 	private requestListener(req: HttpRequest, res: HttpResponse): Response | void {
