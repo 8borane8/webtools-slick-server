@@ -111,10 +111,13 @@ export class Compiler {
 		const pageHead = await this.compile<VNode>(req, page.head);
 		const pageBody = await this.compile<VNode>(req, page.body);
 
+		const title = await this.compile<string>(req, page.title) || "";
+		const favicon = await this.compile<string>(req, template.favicon) || "";
+
 		return {
 			url: req.url,
-			title: page.title,
-			favicon: template.favicon,
+			title,
+			favicon,
 			template: renderTemplate
 				? {
 					name: template.name,
