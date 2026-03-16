@@ -83,7 +83,7 @@ export class Router {
 			return res.json(dic);
 		}
 
-		if (page.onpost) this.httpServer.post(page.url, page.onpost);
+		if (page.onpost) return await page.onpost(req, res);
 	}
 
 	private requestListener(req: HttpRequest, res: HttpResponse): Response | void {
