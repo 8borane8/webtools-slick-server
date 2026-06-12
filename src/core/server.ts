@@ -1,4 +1,7 @@
 import { TemplatesManager } from "../managers/templates.ts";
+import { IslandsManager } from "../managers/islands.ts";
+import { AssetsManager } from "../managers/assets.ts";
+import { activateIslandsHook } from "../islands/hook.tsx";
 import { PagesManager } from "../managers/pages.ts";
 import { Router } from "./router.ts";
 
@@ -11,7 +14,18 @@ export interface Config {
 	readonly lang: string;
 	readonly r404: string;
 	readonly client: boolean | string;
+	readonly noCache: boolean;
+	readonly trustProxy: boolean;
+	readonly sharedLibs: string[];
 }
+
+const SHARED_LIBS = [
+	"preact",
+	"preact/hooks",
+	"preact/jsx-runtime",
+	"preact-root-fragment",
+	"@preact/signals",
+];
 
 export class Slick {
 	private static readonly requiredDirectories: Array<string> = ["templates", "static", "pages"];
@@ -19,8 +33,10 @@ export class Slick {
 	private readonly templatesManager = new TemplatesManager();
 	private readonly pagesManager = new PagesManager();
 
+	private readonly islandsManager: IslandsManager;
 	private readonly config: Config;
-	private readonly router: Router;
+
+	private router?: Router;
 
 	constructor(private readonly workspace: string, config: Partial<Config>) {
 		this.config = {
@@ -29,21 +45,38 @@ export class Slick {
 			lang: config.lang || "en",
 			r404: config.r404 || "/",
 			client: config.client || false,
+			noCache: config.noCache || false,
+			trustProxy: config.trustProxy || false,
+			sharedLibs: [
+				...SHARED_LIBS,
+				...(config.sharedLibs || []),
+			],
 		};
 
-		this.router = new Router(
-			this.workspace,
-			this.config,
-			this.templatesManager,
-			this.pagesManager,
-		);
+		this.islandsManager = new IslandsManager(this.config);
 	}
 
 	public async start(): Promise<void> {
 		this.preventConfigurationErrors();
-		await this.templatesManager.load(this.workspace);
-		await this.pagesManager.load(this.workspace);
+
+		await this.islandsManager.load(this.workspace);
+		if (this.islandsManager.hasIslands()) {
+			activateIslandsHook(this.islandsManager.getRegistry());
+		}
+
+		await Promise.all([
+			this.templatesManager.load(this.workspace),
+			this.pagesManager.load(this.workspace),
+		]);
 		this.preventErrors();
+
+		this.router = new Router(
+			this.config,
+			this.templatesManager,
+			this.pagesManager,
+			this.islandsManager,
+			new AssetsManager(this.workspace, this.config.env, this.config.noCache),
+		);
 
 		this.router.start();
 	}

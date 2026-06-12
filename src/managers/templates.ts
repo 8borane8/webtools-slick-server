@@ -18,14 +18,18 @@ export interface Template {
 	readonly onrequest: RequestListener | null;
 }
 
+const SUPPORTED_EXTENSIONS = [".tsx", ".ts", ".jsx", ".js"];
+
 export class TemplatesManager {
 	private readonly templates: Template[] = [];
 
 	public async load(workspace: string): Promise<void> {
 		for (const walkEntry of fs.walkSync(path.join(workspace, "templates"), { includeDirs: false })) {
+			const ext = path.extname(walkEntry.name);
+			if (!SUPPORTED_EXTENSIONS.includes(ext)) continue;
+
 			const dynamicImport = await import(path.toFileUrl(walkEntry.path).toString());
 			const template: Template = dynamicImport.default;
-
 			this.templates.push(template);
 		}
 	}

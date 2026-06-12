@@ -21,14 +21,18 @@ export interface Page {
 	readonly onrequest: RequestListener | null;
 }
 
+const SUPPORTED_EXTENSIONS = [".tsx", ".ts", ".jsx", ".js"];
+
 export class PagesManager {
 	private readonly pages: Page[] = [];
 
 	public async load(workspace: string): Promise<void> {
 		for (const walkEntry of fs.walkSync(path.join(workspace, "pages"), { includeDirs: false })) {
+			const ext = path.extname(walkEntry.name);
+			if (!SUPPORTED_EXTENSIONS.includes(ext)) continue;
+
 			const dynamicImport = await import(path.toFileUrl(walkEntry.path).toString());
 			const page: Page = dynamicImport.default;
-
 			this.pages.push(page);
 		}
 	}

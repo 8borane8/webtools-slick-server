@@ -1,18 +1,19 @@
 {
 	"name": "@webtools/slick-server",
 	"exports": "./src/mod.ts",
-	"version": "0.5.11",
+	"version": "0.6.0",
 	"license": "MIT",
 
 	"lock": false,
 	"imports": {
-		"@webtools/expressapi": "jsr:@webtools/expressapi@^0.6.4",
-		"@std/path": "jsr:@std/path@^1.0.8",
-		"@std/fs": "jsr:@std/fs@^1.0.14",
+		"@webtools/expressapi": "jsr:@webtools/expressapi@^0.8.1",
+		"@std/path": "jsr:@std/path@^1.1.5",
+		"@std/fs": "jsr:@std/fs@^1.0.24",
 
-		"preact-render-to-string": "npm:preact-render-to-string@^6.5.9",
-		"esbuild": "npm:esbuild@^0.23.1",
-		"preact": "npm:preact@^10.23.2"
+		"preact-render-to-string": "npm:preact-render-to-string@^6.7.0",
+		"preact-root-fragment": "npm:preact-root-fragment@^0.3.1",
+		"esbuild": "npm:esbuild@^0.28.1",
+		"preact": "npm:preact@^10.29.2"
 	},
 
 	"fmt": {

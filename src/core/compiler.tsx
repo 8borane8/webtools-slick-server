@@ -1,100 +1,126 @@
 // deno-lint-ignore-file jsx-key
-
 import { renderToString } from "preact-render-to-string";
 import type { HttpRequest } from "@webtools/expressapi";
 import type { VNode } from "preact";
 
+import type { IslandsManager } from "../managers/islands.ts";
+import { ISLAND_HYDRATION_SCRIPT } from "../islands/hydration.ts";
 import type { Template } from "../managers/templates.ts";
+import { libToVendorUrl } from "../utils/vendors.ts";
 import type { Page } from "../managers/pages.ts";
 import type { Config } from "./server.ts";
 
 export type Render<T> = ((req: HttpRequest) => Promise<T> | T) | T;
 
+// deno-lint-ignore no-explicit-any
+function injectPage(node: any, page: VNode | null): any {
+	if (!node || typeof node !== "object") return node;
+
+	const { type, props } = node;
+	if (typeof type === "string" && props?.id === "app") {
+		return { ...node, props: { ...props, children: page } };
+	}
+
+	const { children } = props;
+	if (!children) return node;
+
+	if (Array.isArray(children)) {
+		let found = false;
+
+		const next = children.map((c) => {
+			if (found) return c;
+			const r = injectPage(c, page);
+			found ||= r !== c;
+			return r;
+		});
+
+		return found ? { ...node, props: { ...props, children: next } } : node;
+	}
+
+	const next = injectPage(children, page);
+	return next !== children ? { ...node, props: { ...props, children: next } } : node;
+}
+
 export class Compiler {
-	constructor(private readonly config: Config) {}
+	private readonly importMap: string | null;
+	private readonly hasIslands: boolean;
+
+	constructor(private readonly config: Config, islandsManager: IslandsManager) {
+		this.hasIslands = islandsManager.hasIslands();
+
+		const imports: Record<string, string> = {};
+
+		if (config.client) {
+			imports["@webtools/slick-client"] = typeof config.client === "string"
+				? config.client
+				: "https://esm.sh/jsr/@webtools/slick-client@^0.3.0";
+		}
+
+		if (this.hasIslands) {
+			for (const lib of islandsManager.getSharedLibs()) {
+				imports[lib] = libToVendorUrl(lib);
+			}
+		}
+
+		this.importMap = Object.keys(imports).length > 0 ? JSON.stringify({ imports }) : null;
+	}
 
 	async compile<T>(req: HttpRequest, render: Render<T> | null): Promise<T | null> {
 		return render instanceof Function ? await render(req) : render;
 	}
 
 	async createDOM(req: HttpRequest, template: Template, page: Page): Promise<string> {
-		const templateHead = await this.compile<VNode>(req, template.head);
-		const templateBody = await this.compile<VNode>(req, template.body);
+		const [templateHead, templateBody, pageHead, pageBody, title, favicon] = await Promise.all([
+			this.compile<VNode>(req, template.head),
+			this.compile<VNode>(req, template.body),
+			this.compile<VNode>(req, page.head),
+			this.compile<VNode>(req, page.body),
+			this.compile<string>(req, page.title),
+			this.compile<string>(req, template.favicon),
+		]);
 
-		const pageHead = await this.compile<VNode>(req, page.head);
-		const pageBody = await this.compile<VNode>(req, page.body);
+		const combinedBody = templateBody ? renderToString(injectPage(templateBody, pageBody)) : "";
 
-		const combinedBody = templateBody
-			? renderToString(templateBody).replace(
-				/(<[^>]*id\s*=\s*['"]app['"][^>]*>).*?(<\/[^>]*>)/s,
-				(_match, p1, p2) => `${p1}${pageBody ? renderToString(pageBody) : ""}${p2}`,
-			)
-			: "";
-
-		const title = await this.compile<string>(req, page.title) || "";
-		const favicon = await this.compile<string>(req, template.favicon) || "";
+		const slickTypeAttr = (type: string) => this.config.client ? { "slick-type": type } : {};
 
 		const html = renderToString(
 			<html lang={this.config.lang}>
 				<head>
 					{templateHead}
 					<title>{title}</title>
+
 					<meta charset="UTF-8" />
 					<meta http-equiv="X-UA-Compatible" content="IE=edge" />
 					<meta
 						name="viewport"
 						content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes"
 					/>
-					{this.config.client
-						? (
-							<>
-								{template.styles.map((s) => <link rel="stylesheet" href={s} slick-type="template" />)}
-								{page.styles.map((s) => <link rel="stylesheet" href={s} slick-type="page" />)}
-							</>
-						)
-						: (
-							<>
-								{template.styles.map((s) => <link rel="stylesheet" href={s} />)}
-								{page.styles.map((s) => <link rel="stylesheet" href={s} />)}
-							</>
-						)}
-					<link rel="shortcut icon" href={favicon} type="image/x-icon" />
+
+					{template.styles.map((s) => <link rel="stylesheet" href={s} {...slickTypeAttr("template")} />)}
+					{page.styles.map((s) => <link rel="stylesheet" href={s} {...slickTypeAttr("page")} />)}
+
+					<link rel="shortcut icon" href={favicon || ""} type="image/x-icon" />
 					{pageHead}
 				</head>
 				<body>
-					<div id="root" dangerouslySetInnerHTML={{ __html: combinedBody }}></div>
-					{this.config.client
-						? (
-							<>
-								<script
-									type="importmap"
-									dangerouslySetInnerHTML={{
-										__html: JSON.stringify({
-											"imports": {
-												"@webtools/slick-client": typeof this.config.client === "string"
-													? this.config.client
-													: "https://esm.sh/jsr/@webtools/slick-client@^0.3.0",
-											},
-										}),
-									}}
-								/>
-								<script
-									type="module"
-									dangerouslySetInnerHTML={{
-										__html:
-											`import { Slick } from "@webtools/slick-client"; Slick.initialize("${template.name}", true);`,
-									}}
-								/>
-								{template.scripts.map((s) => <script src={s} type="module" slick-type="template" />)}
-								{page.scripts.map((s) => <script src={s} type="module" slick-type="page" />)}
-							</>
-						)
-						: (
-							<>
-								{template.scripts.map((s) => <script src={s} type="module" />)}
-								{page.scripts.map((s) => <script src={s} type="module" />)}
-							</>
-						)}
+					<div id="root" dangerouslySetInnerHTML={{ __html: combinedBody }} />
+
+					{this.importMap && <script type="importmap" dangerouslySetInnerHTML={{ __html: this.importMap }} />}
+					{this.config.client && (
+						<script
+							type="module"
+							dangerouslySetInnerHTML={{
+								__html:
+									`import{Slick}from"@webtools/slick-client";Slick.initialize("${template.name}",true);`,
+							}}
+						/>
+					)}
+					{this.hasIslands && (
+						<script type="module" dangerouslySetInnerHTML={{ __html: ISLAND_HYDRATION_SCRIPT }} />
+					)}
+
+					{template.scripts.map((s) => <script src={s} type="module" {...slickTypeAttr("template")} />)}
+					{page.scripts.map((s) => <script src={s} type="module" {...slickTypeAttr("page")} />)}
 				</body>
 			</html>,
 		);
@@ -105,19 +131,19 @@ export class Compiler {
 	async createDIC(req: HttpRequest, template: Template, page: Page): Promise<object> {
 		const renderTemplate = req.headers.get("x-slick-template") !== page.template;
 
-		const templateHead = renderTemplate ? await this.compile<VNode>(req, template.head) : null;
-		const templateBody = renderTemplate ? await this.compile<VNode>(req, template.body) : null;
-
-		const pageHead = await this.compile<VNode>(req, page.head);
-		const pageBody = await this.compile<VNode>(req, page.body);
-
-		const title = await this.compile<string>(req, page.title) || "";
-		const favicon = await this.compile<string>(req, template.favicon) || "";
+		const [templateHead, templateBody, pageHead, pageBody, title, favicon] = await Promise.all([
+			renderTemplate ? this.compile<VNode>(req, template.head) : Promise.resolve(null),
+			renderTemplate ? this.compile<VNode>(req, template.body) : Promise.resolve(null),
+			this.compile<VNode>(req, page.head),
+			this.compile<VNode>(req, page.body),
+			this.compile<string>(req, page.title),
+			this.compile<string>(req, template.favicon),
+		]);
 
 		return {
 			url: req.url,
-			title,
-			favicon,
+			title: title,
+			favicon: favicon,
 			template: renderTemplate
 				? {
 					name: template.name,

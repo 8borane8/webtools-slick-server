@@ -1,5 +1,9 @@
+import { ISLAND_PREFIX, islandUrlToName } from "../utils/islands.ts";
+import { VENDOR_PREFIX, vendorUrlToLib } from "../utils/vendors.ts";
 import type { TemplatesManager } from "../managers/templates.ts";
 import type { Page, PagesManager } from "../managers/pages.ts";
+import type { IslandsManager } from "../managers/islands.ts";
+import type { AssetsManager } from "../managers/assets.ts";
 import type { Config } from "./server.ts";
 import { Compiler } from "./compiler.tsx";
 
@@ -11,27 +15,19 @@ import {
 	type RequestListener,
 } from "@webtools/expressapi";
 
-import * as esbuild from "esbuild";
-import * as path from "@std/path";
-import * as fs from "@std/fs";
-
 export class Router {
-	private static readonly contentTypes: Record<string, string> = {
-		js: "text/javascript",
-		ts: "text/javascript",
-		css: "text/css",
-	};
-
-	private readonly httpServer: HttpServer = new HttpServer();
+	private readonly httpServer: HttpServer;
 	private readonly compiler: Compiler;
 
 	constructor(
-		private readonly workspace: string,
 		private readonly config: Config,
 		private readonly templatesManager: TemplatesManager,
 		private readonly pagesManager: PagesManager,
+		private readonly islandsManager: IslandsManager,
+		private readonly assetsManager: AssetsManager,
 	) {
-		this.compiler = new Compiler(this.config);
+		this.httpServer = new HttpServer({ trustProxy: config.trustProxy });
+		this.compiler = new Compiler(this.config, islandsManager);
 	}
 
 	public start(): void {
@@ -86,37 +82,25 @@ export class Router {
 		if (page.onpost) return await page.onpost(req, res);
 	}
 
-	private requestListener(req: HttpRequest, res: HttpResponse): Response | void {
+	private async requestListener(req: HttpRequest, res: HttpResponse): Promise<Response | void> {
 		if (req.method !== HttpMethods.GET) return;
 
-		const staticPath = path.resolve(path.join(this.workspace, "static"));
-		const filePath = path.resolve(path.join(staticPath, req.url));
+		if (req.url.startsWith(VENDOR_PREFIX)) {
+			const lib = vendorUrlToLib(req.url);
+			const bundle = this.islandsManager.findVendorBundle(lib);
 
-		if (filePath.startsWith(staticPath) && fs.existsSync(filePath) && Deno.statSync(filePath).isFile) {
-			const ext = path.extname(filePath).slice(1);
-
-			if (ext && Object.keys(Router.contentTypes).includes(ext)) {
-				const fileBytes = Deno.readFileSync(filePath);
-
-				const define = Object.fromEntries(
-					Object.entries(this.config.env).map(([k, v]) => [k, JSON.stringify(v)]),
-				);
-
-				const output = esbuild.transformSync(fileBytes, {
-					loader: ext as esbuild.Loader,
-					minify: true,
-					format: "esm",
-					define,
-				});
-
-				return res.setHeader("Content-Type", Router.contentTypes[ext])
-					.size(output.code.length)
-					.send(output.code);
-			}
-
-			return res.sendFile(filePath);
+			if (!bundle) return res.redirect(this.config.r404);
+			return res.setHeader("Content-Type", "text/javascript").size(bundle.length).send(bundle);
 		}
 
-		return res.redirect(this.config.r404);
+		if (req.url.startsWith(ISLAND_PREFIX) && this.islandsManager.hasIslands()) {
+			const name = islandUrlToName(req.url);
+			const info = this.islandsManager.findByName(name);
+
+			if (!info) return res.redirect(this.config.r404);
+			return res.setHeader("Content-Type", "text/javascript").size(info.bundle.length).send(info.bundle);
+		}
+
+		return await this.assetsManager.serve(req, res) || res.redirect(this.config.r404);
 	}
 }
