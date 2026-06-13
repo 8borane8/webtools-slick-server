@@ -1,4 +1,5 @@
 import type { ComponentType } from "preact";
+import { denoPlugin } from "esbuild-plugin";
 import * as esbuild from "esbuild";
 import * as path from "@std/path";
 import * as fs from "@std/fs";
@@ -36,7 +37,7 @@ export class IslandsManager {
 
 		await Promise.all(
 			this.sharedLibs.map(async (lib) => {
-				const bundle = await buildVendorBundle(lib, this.sharedLibs, this.define);
+				const bundle = await buildVendorBundle(workspace, lib, this.sharedLibs, this.define);
 				this.vendorBundles.set(lib, bundle);
 			}),
 		);
@@ -60,6 +61,8 @@ export class IslandsManager {
 					define: this.define,
 					jsx: "automatic",
 					jsxImportSource: "preact",
+					absWorkingDir: workspace,
+					plugins: [denoPlugin()],
 				}),
 			]);
 

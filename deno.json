@@ -1,7 +1,7 @@
 {
 	"name": "@webtools/slick-server",
 	"exports": "./src/mod.ts",
-	"version": "0.6.11",
+	"version": "0.6.12",
 	"license": "MIT",
 
 	"lock": false,
@@ -12,6 +12,7 @@
 
 		"preact-render-to-string": "npm:preact-render-to-string@^6.7.0",
 		"preact-root-fragment": "npm:preact-root-fragment@^0.3.1",
+		"esbuild-plugin": "jsr:@deno/esbuild-plugin@^1.2.1",
 		"esbuild": "npm:esbuild@^0.28.1",
 		"preact": "npm:preact@^10.29.2"
 	},

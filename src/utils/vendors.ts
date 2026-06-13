@@ -1,3 +1,4 @@
+import { denoPlugin } from "esbuild-plugin";
 import * as esbuild from "esbuild";
 
 export const VENDOR_PREFIX = "/~vendors/";
@@ -31,6 +32,7 @@ const SHARED_CONFIG = {
 } as const satisfies Partial<esbuild.BuildOptions>;
 
 export async function buildVendorBundle(
+	workspace: string,
 	lib: string,
 	sharedLibs: string[],
 	define: Record<string, string>,
@@ -42,10 +44,11 @@ export async function buildVendorBundle(
 		stdin: {
 			contents:
 				`export * from ${libName}; import * as __ns from ${libName}; export default __ns.default || __ns;`,
-			resolveDir: Deno.cwd(),
+			resolveDir: workspace,
 		},
 		define,
-		plugins: [crossRedirectPlugin(sharedLibs, lib)],
+		absWorkingDir: workspace,
+		plugins: [crossRedirectPlugin(sharedLibs, lib), denoPlugin()],
 	});
 
 	return new TextDecoder().decode(outputFiles[0].contents);
