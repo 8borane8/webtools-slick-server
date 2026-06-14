@@ -62,9 +62,7 @@ export class IslandsManager {
 					jsx: "automatic",
 					jsxImportSource: "preact",
 					absWorkingDir: workspace,
-					plugins: [denoPlugin({
-						configPath: path.join(Deno.cwd(), "deno.json"),
-					})],
+					plugins: [denoPlugin()],
 				}),
 			]);
 

@@ -51,9 +51,7 @@ export async function buildVendorBundle(
 		absWorkingDir: workspace,
 		plugins: [
 			crossRedirectPlugin(sharedLibs, lib),
-			denoPlugin({
-				configPath: path.join(Deno.cwd(), "deno.json"),
-			}),
+			denoPlugin(),
 		],
 	});
 
