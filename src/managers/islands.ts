@@ -32,15 +32,15 @@ export class IslandsManager {
 	}
 
 	public async load(workspace: string): Promise<void> {
-		const islandsDir = path.join(workspace, "islands");
-		if (!fs.existsSync(islandsDir)) return;
-
 		await Promise.all(
 			this.sharedLibs.map(async (lib) => {
 				const bundle = await buildVendorBundle(workspace, lib, this.sharedLibs, this.define);
 				this.vendorBundles.set(lib, bundle);
 			}),
 		);
+
+		const islandsDir = path.join(workspace, "islands");
+		if (!fs.existsSync(islandsDir)) return;
 
 		const entries = [...fs.walkSync(islandsDir, { includeDirs: false })]
 			.filter((e) => SUPPORTED_EXTENSIONS.includes(path.extname(e.name)));
@@ -62,7 +62,9 @@ export class IslandsManager {
 					jsx: "automatic",
 					jsxImportSource: "preact",
 					absWorkingDir: workspace,
-					plugins: [denoPlugin()],
+					plugins: [denoPlugin({
+						configPath: path.join(workspace, "deno.json"),
+					})],
 				}),
 			]);
 

@@ -13,7 +13,7 @@ export interface Config {
 	readonly port: number;
 	readonly lang: string;
 	readonly r404: string;
-	readonly client: boolean | string;
+	readonly client: boolean;
 	readonly noCache: boolean;
 	readonly trustProxy: boolean;
 	readonly sharedLibs: string[];
@@ -27,6 +27,8 @@ const SHARED_LIBS = [
 	"@preact/signals",
 ];
 
+const CLIENT_LIB = "@webtools/slick-client";
+
 export class Slick {
 	private static readonly requiredDirectories: Array<string> = ["templates", "static", "pages"];
 
@@ -39,6 +41,12 @@ export class Slick {
 	private router?: Router;
 
 	constructor(private readonly workspace: string, config: Partial<Config>) {
+		const sharedLibs = [
+			...SHARED_LIBS,
+			...(config.client ? [CLIENT_LIB] : []),
+			...(config.sharedLibs || []),
+		];
+
 		this.config = {
 			env: config.env || {},
 			port: config.port || 5000,
@@ -47,10 +55,7 @@ export class Slick {
 			client: config.client || false,
 			noCache: config.noCache || false,
 			trustProxy: config.trustProxy || false,
-			sharedLibs: [
-				...SHARED_LIBS,
-				...(config.sharedLibs || []),
-			],
+			sharedLibs: [...new Set(sharedLibs)],
 		};
 
 		this.islandsManager = new IslandsManager(this.config);

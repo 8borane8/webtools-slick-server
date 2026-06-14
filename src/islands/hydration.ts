@@ -2,10 +2,6 @@ import { VENDOR_PREFIX } from "../utils/vendors.ts";
 import { ISLAND_PREFIX } from "../utils/islands.ts";
 import * as esbuild from "esbuild";
 
-// Replaced at build time with VENDOR_PREFIX (see esbuild `define` below).
-// The vendor URL is built at runtime instead of using a bare `import("preact")`,
-// because JSR (on publish) and Deno (on transpile) rewrite literal specifiers
-// into unusable `npm:pkg@version` URLs. A computed specifier is left untouched.
 declare const __VENDOR_PREFIX__: string;
 declare const __ISLAND_PREFIX__: string;
 

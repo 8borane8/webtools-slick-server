@@ -1,5 +1,6 @@
 import { denoPlugin } from "esbuild-plugin";
 import * as esbuild from "esbuild";
+import * as path from "@std/path";
 
 export const VENDOR_PREFIX = "/~vendors/";
 
@@ -48,7 +49,12 @@ export async function buildVendorBundle(
 		},
 		define,
 		absWorkingDir: workspace,
-		plugins: [crossRedirectPlugin(sharedLibs, lib), denoPlugin()],
+		plugins: [
+			crossRedirectPlugin(sharedLibs, lib),
+			denoPlugin({
+				configPath: path.join(workspace, "deno.json"),
+			}),
+		],
 	});
 
 	return new TextDecoder().decode(outputFiles[0].contents);

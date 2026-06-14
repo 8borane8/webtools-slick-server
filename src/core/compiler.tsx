@@ -50,13 +50,7 @@ export class Compiler {
 
 		const imports: Record<string, string> = {};
 
-		if (config.client) {
-			imports["@webtools/slick-client"] = typeof config.client === "string"
-				? config.client
-				: "https://esm.sh/jsr/@webtools/slick-client@^0.3.0";
-		}
-
-		if (this.hasIslands) {
+		if (this.config.client || this.hasIslands) {
 			for (const lib of islandsManager.getSharedLibs()) {
 				imports[lib] = libToVendorUrl(lib);
 			}
