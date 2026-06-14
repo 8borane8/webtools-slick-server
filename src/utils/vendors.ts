@@ -52,7 +52,7 @@ export async function buildVendorBundle(
 		plugins: [
 			crossRedirectPlugin(sharedLibs, lib),
 			denoPlugin({
-				configPath: path.join(workspace, "deno.json"),
+				configPath: path.join(Deno.cwd(), "deno.json"),
 			}),
 		],
 	});
