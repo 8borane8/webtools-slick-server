@@ -7,26 +7,53 @@ declare const __ISLAND_PREFIX__: string;
 
 const islandHydration = () => {
 	const hydrated = new WeakSet<Element>();
+	let pending: Promise<void> | null = null;
 
 	async function run(container: Document | Element) {
-		const roots = Array.from(container.querySelectorAll("[data-slick-island]")).filter((r) => !hydrated.has(r));
+		if (pending) await pending;
+		pending = doRun(container);
+		await pending;
+		pending = null;
+	}
+
+	async function doRun(container: Document | Element) {
+		const roots = Array.from(container.querySelectorAll("[data-slick-island]")).filter((r) =>
+			!hydrated.has(r) && r.isConnected
+		);
+
 		if (!roots.length) return;
+		for (const root of roots) hydrated.add(root);
 
 		const { createRootFragment } = await import(__VENDOR_PREFIX__ + "preact-root-fragment");
 		const { hydrate, h } = await import(__VENDOR_PREFIX__ + "preact");
 
 		await Promise.all(roots.map(async (root: Element) => {
-			hydrated.add(root);
+			if (!root.isConnected) return;
+
 			const name = root.getAttribute("data-slick-island");
 			const props = JSON.parse(root.getAttribute("data-slick-props") || "{}");
-
-			const { default: Island } = await import(__ISLAND_PREFIX__ + name);
-			hydrate(h(Island, props), createRootFragment(root.parentElement!, root));
+			try {
+				const { default: Island } = await import(__ISLAND_PREFIX__ + name);
+				hydrate(h(Island, props), createRootFragment(root.parentElement!, root));
+			} catch (e) {
+				hydrated.delete(root);
+				console.error(`Failed to hydrate island ${name}`, e);
+			}
 		}));
 	}
 
+	let scheduled = false;
+	const observer = new MutationObserver(() => {
+		if (scheduled) return;
+		scheduled = true;
+		queueMicrotask(() => {
+			scheduled = false;
+			run(document);
+		});
+	});
+
 	run(document);
-	new MutationObserver(() => run(document)).observe(document, { childList: true, subtree: true });
+	observer.observe(document, { childList: true, subtree: true });
 };
 
 const { code } = await esbuild.transform(`(${islandHydration.toString()})()`, {
