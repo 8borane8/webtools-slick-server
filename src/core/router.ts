@@ -3,6 +3,7 @@ import { VENDOR_PREFIX, vendorUrlToLib } from "../utils/vendors.ts";
 import type { TemplatesManager } from "../managers/templates.ts";
 import type { Page, PagesManager } from "../managers/pages.ts";
 import type { IslandsManager } from "../managers/islands.ts";
+import type { VendorsManager } from "../managers/vendors.ts";
 import type { AssetsManager } from "../managers/assets.ts";
 import type { Config } from "./server.ts";
 import { Compiler } from "./compiler.tsx";
@@ -23,11 +24,12 @@ export class Router {
 		private readonly config: Config,
 		private readonly templatesManager: TemplatesManager,
 		private readonly pagesManager: PagesManager,
+		private readonly vendorsManager: VendorsManager,
 		private readonly islandsManager: IslandsManager,
 		private readonly assetsManager: AssetsManager,
 	) {
 		this.httpServer = new HttpServer({ trustProxy: config.trustProxy });
-		this.compiler = new Compiler(this.config, islandsManager);
+		this.compiler = new Compiler(this.config, vendorsManager, islandsManager);
 	}
 
 	public start(): void {
@@ -87,7 +89,7 @@ export class Router {
 
 		if (req.url.startsWith(VENDOR_PREFIX)) {
 			const lib = vendorUrlToLib(req.url);
-			const bundle = this.islandsManager.findVendorBundle(lib);
+			const bundle = this.vendorsManager.findBundle(lib);
 
 			if (!bundle) return res.redirect(this.config.r404);
 			return res.setHeader("Content-Type", "text/javascript").size(bundle.length).send(bundle);

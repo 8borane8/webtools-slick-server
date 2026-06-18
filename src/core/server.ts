@@ -1,5 +1,6 @@
 import { TemplatesManager } from "../managers/templates.ts";
 import { IslandsManager } from "../managers/islands.ts";
+import { VendorsManager } from "../managers/vendors.ts";
 import { AssetsManager } from "../managers/assets.ts";
 import { activateIslandsHook } from "../islands/hook.tsx";
 import { PagesManager } from "../managers/pages.ts";
@@ -32,9 +33,9 @@ const CLIENT_LIB = "@webtools/slick-client";
 export class Slick {
 	private static readonly requiredDirectories: Array<string> = ["templates", "static", "pages"];
 
-	private readonly templatesManager = new TemplatesManager();
-	private readonly pagesManager = new PagesManager();
-
+	private readonly templatesManager: TemplatesManager;
+	private readonly pagesManager: PagesManager;
+	private readonly vendorsManager: VendorsManager;
 	private readonly islandsManager: IslandsManager;
 	private readonly config: Config;
 
@@ -58,27 +59,33 @@ export class Slick {
 			sharedLibs: [...new Set(sharedLibs)],
 		};
 
+		this.vendorsManager = new VendorsManager(this.config);
 		this.islandsManager = new IslandsManager(this.config);
+		this.templatesManager = new TemplatesManager(this.config.env);
+		this.pagesManager = new PagesManager(this.config.env);
 	}
 
 	public async start(): Promise<void> {
 		this.preventConfigurationErrors();
 
-		await this.islandsManager.load(this.workspace);
+		await Promise.all([
+			this.vendorsManager.load(this.workspace),
+			this.islandsManager.load(this.workspace),
+			this.templatesManager.load(this.workspace),
+			this.pagesManager.load(this.workspace),
+		]);
+
 		if (this.islandsManager.hasIslands()) {
 			activateIslandsHook(this.islandsManager.getRegistry());
 		}
 
-		await Promise.all([
-			this.templatesManager.load(this.workspace),
-			this.pagesManager.load(this.workspace),
-		]);
 		this.preventErrors();
 
 		this.router = new Router(
 			this.config,
 			this.templatesManager,
 			this.pagesManager,
+			this.vendorsManager,
 			this.islandsManager,
 			new AssetsManager(this.workspace, this.config.env, this.config.noCache),
 		);

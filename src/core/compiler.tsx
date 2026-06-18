@@ -4,6 +4,7 @@ import type { HttpRequest } from "@webtools/expressapi";
 import type { VNode } from "preact";
 
 import type { IslandsManager } from "../managers/islands.ts";
+import type { VendorsManager } from "../managers/vendors.ts";
 import { ISLAND_HYDRATION_SCRIPT } from "../islands/hydration.ts";
 import type { Template } from "../managers/templates.ts";
 import { libToVendorUrl } from "../utils/vendors.ts";
@@ -45,13 +46,17 @@ export class Compiler {
 	private readonly importMap: string | null;
 	private readonly hasIslands: boolean;
 
-	constructor(private readonly config: Config, islandsManager: IslandsManager) {
+	constructor(
+		private readonly config: Config,
+		vendorsManager: VendorsManager,
+		islandsManager: IslandsManager,
+	) {
 		this.hasIslands = islandsManager.hasIslands();
 
 		const imports: Record<string, string> = {};
 
 		if (this.config.client || this.hasIslands) {
-			for (const lib of islandsManager.getSharedLibs()) {
+			for (const lib of vendorsManager.getSharedLibs()) {
 				imports[lib] = libToVendorUrl(lib);
 			}
 		}

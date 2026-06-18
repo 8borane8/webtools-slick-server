@@ -41,6 +41,7 @@
 - [Quick Start](#-quick-start)
 - [Project Structure](#-project-structure)
 - [Configuration](#-configuration)
+- [Environment Variables](#-environment-variables)
 - [Templates](#-templates)
 - [Pages](#-pages)
 - [Dynamic Rendering](#-dynamic-rendering)
@@ -267,11 +268,11 @@ new Slick(workspace: string, config: Partial<Config>)
 
 ```ts
 interface Config {
-	env: Record<string, string>; // Variables injected into static files, islands and vendors
+	env: Record<string, string>; // Compile-time constants (SSR + client)
 	port: number; // HTTP port
 	lang: string; // <html lang="..."> attribute
 	r404: string; // Fallback URL when no route/asset matches
-	client: boolean | string; // SPA mode: false, true, or a custom client URL
+	client: boolean; // SPA mode: adds @webtools/slick-client as a shared vendor
 	noCache: boolean; // Disable the compiled-asset in-memory cache
 	trustProxy: boolean; // Trust X-Forwarded-* headers (behind a reverse proxy)
 	sharedLibs: string[]; // Extra libraries made available to islands
@@ -280,16 +281,69 @@ interface Config {
 
 ### Options
 
-| Option       | Type                     | Default | Description                                                                                                                                           |
-| ------------ | ------------------------ | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `env`        | `Record<string, string>` | `{}`    | Compile-time constants injected via esbuild `define` into static scripts, islands and vendor bundles.                                                 |
-| `port`       | `number`                 | `5000`  | Port the HTTP server listens on.                                                                                                                      |
-| `lang`       | `string`                 | `"en"`  | Value of the HTML `lang` attribute.                                                                                                                   |
-| `r404`       | `string`                 | `"/"`   | Page URL to redirect to when a route or asset is not found. **Must match an existing page.**                                                          |
-| `client`     | `boolean \| string`      | `false` | `true` injects `@webtools/slick-client` from `esm.sh`; a string uses it as a custom client script URL.                                                |
-| `noCache`    | `boolean`                | `false` | When `true`, compiled assets are recompiled on every request (useful during development).                                                             |
-| `trustProxy` | `boolean`                | `false` | Forwarded to the underlying HTTP server to honor proxy headers (real client IP, protocol, etc.).                                                      |
-| `sharedLibs` | `string[]`               | `[]`    | Libraries bundled once globally and shared across all islands (avoids duplicating them in every island bundle). Merged with the built-in Preact libs. |
+| Option       | Type                     | Default | Description                                                                                                                                                                                             |
+| ------------ | ------------------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `env`        | `Record<string, string>` | `{}`    | Compile-time constants injected via esbuild `define`. Available in pages, templates, islands (SSR and client), static scripts and vendor bundles. See [Environment Variables](#-environment-variables). |
+| `port`       | `number`                 | `5000`  | Port the HTTP server listens on.                                                                                                                                                                        |
+| `lang`       | `string`                 | `"en"`  | Value of the HTML `lang` attribute.                                                                                                                                                                     |
+| `r404`       | `string`                 | `"/"`   | Page URL to redirect to when a route or asset is not found. **Must match an existing page.**                                                                                                            |
+| `client`     | `boolean`                | `false` | When `true`, enables SPA navigation via `@webtools/slick-client`, bundled as a shared vendor and exposed through the import map.                                                                        |
+| `noCache`    | `boolean`                | `false` | When `true`, compiled assets are recompiled on every request (useful during development).                                                                                                               |
+| `trustProxy` | `boolean`                | `false` | Forwarded to the underlying HTTP server to honor proxy headers (real client IP, protocol, etc.).                                                                                                        |
+| `sharedLibs` | `string[]`               | `[]`    | Libraries bundled once globally and shared across all islands (avoids duplicating them in every island bundle). Merged with the built-in Preact libs.                                                   |
+
+## 🔑 Environment Variables
+
+Keys from `config.env` are injected at **compile time** via esbuild `define`. Reference them as bare global identifiers
+— no `process.env`, no `Deno.env`:
+
+```ts
+const app = new Slick(import.meta.dirname!, {
+	env: {
+		API_URL: Deno.env.get("API_URL") ?? "http://localhost:3000",
+	},
+});
+```
+
+They are available **everywhere Slick compiles your code**, including during SSR:
+
+| Surface              | SSR | Client (browser) |
+| -------------------- | --- | ---------------- |
+| Pages                | ✅  | —                |
+| Templates            | ✅  | —                |
+| Islands              | ✅  | ✅               |
+| Static `.js` / `.ts` | —   | ✅               |
+| Vendor bundles       | —   | ✅               |
+
+```tsx
+// pages/index.tsx — evaluated at SSR
+export default {
+	url: "/",
+	template: "app",
+	title: `Home — ${API_URL}`,
+	body: <p>Connected to {API_URL}</p>,
+	styles: [],
+	scripts: [],
+	head: null,
+	onpost: null,
+	onrequest: null,
+} satisfies Page;
+```
+
+```tsx
+// islands/Status.tsx — SSR render + hydrated client bundle
+export default function Status() {
+	return <p>API: {API_URL}</p>;
+}
+```
+
+```ts
+// static/scripts/app.ts — served to the browser
+console.log("API:", API_URL);
+```
+
+Values are baked in when Slick loads your project (pages, templates, islands) or when an asset is first compiled. Change
+`config.env` and restart the server to pick up new values.
 
 ## 🎨 Templates
 
@@ -458,14 +512,7 @@ traversal outside `static/` is blocked.
 Compiled CSS/JS/TS results are cached in memory after the first request. Set `noCache: true` to recompile on every
 request during development.
 
-### Environment variables in static scripts
-
-Keys from `config.env` are injected at compile time via esbuild `define`, so you can reference them directly:
-
-```ts
-// static/scripts/app.ts
-console.log(API_URL); // Replaced with the value from config.env at build time
-```
+> Static scripts also receive `config.env` values — see [Environment Variables](#-environment-variables).
 
 ## 🏝️ Islands
 
@@ -575,6 +622,9 @@ need to add them to `sharedLibs`):
 - `@preact/signals`
 - `preact-root-fragment`
 
+With `client: true`, `@webtools/slick-client` is also added automatically and served from
+`/~vendors/@webtools/slick-client`.
+
 `sharedLibs` is **merged** with this built-in list, so anything you declare is added on top of the defaults.
 
 > **Rule of thumb:** any third-party library imported by **more than one island** (or any large library imported even
@@ -646,22 +696,26 @@ When `client` is set, Slick turns your multi-page app into a single-page app **w
 
 ### Enabling it
 
-```ts
-// Use the default client served from esm.sh
-const app = new Slick(import.meta.dirname!, { client: true });
+Add `@webtools/slick-client` to your `deno.json` imports, then enable client mode:
+
+```json
+{
+	"imports": {
+		"@webtools/slick-server": "jsr:@webtools/slick-server@^0.6.0",
+		"@webtools/slick-client": "jsr:@webtools/slick-client@^0.3.0"
+	}
+}
 ```
 
 ```ts
-// Or point to a custom client build (CDN, local file, etc.)
-const app = new Slick(import.meta.dirname!, {
-	client: "https://cdn.example.com/slick-client.js",
-});
+const app = new Slick(import.meta.dirname!, { client: true });
+await app.start();
 ```
 
 ### How it works
 
-- With `client: true`, Slick injects `@webtools/slick-client` from `https://esm.sh/jsr/@webtools/slick-client@^0.3.0`.
-- With `client: "<url>"`, your custom URL is injected instead.
+- With `client: true`, Slick adds `@webtools/slick-client` to the shared vendor bundles and exposes it through the
+  generated import map (`/~vendors/@webtools/slick-client`).
 - The client initializes with the current template name and intercepts navigations.
 - On navigation, the server is asked (via the `X-Slick-Template` header) for a JSON payload containing the new page, and
   the template too, only when it changed, which the client applies in place.

@@ -5,6 +5,8 @@ import type { VNode } from "preact";
 import * as path from "@std/path";
 import * as fs from "@std/fs";
 
+import { envToDefine, loadModuleWithDefine, SUPPORTED_EXTENSIONS } from "../utils/loader.ts";
+
 export interface Page {
 	readonly url: string;
 	readonly template: string;
@@ -21,20 +23,23 @@ export interface Page {
 	readonly onrequest: RequestListener | null;
 }
 
-const SUPPORTED_EXTENSIONS = [".tsx", ".ts", ".jsx", ".js"];
-
 export class PagesManager {
 	private readonly pages: Page[] = [];
+	private readonly define: Record<string, string>;
+
+	constructor(env: Record<string, string> = {}) {
+		this.define = envToDefine(env);
+	}
 
 	public async load(workspace: string): Promise<void> {
-		for (const walkEntry of fs.walkSync(path.join(workspace, "pages"), { includeDirs: false })) {
-			const ext = path.extname(walkEntry.name);
-			if (!SUPPORTED_EXTENSIONS.includes(ext)) continue;
+		const pagesDir = path.join(workspace, "pages");
+		const entries = [...fs.walkSync(pagesDir, { includeDirs: false })]
+			.filter((e) => SUPPORTED_EXTENSIONS.has(path.extname(e.name)));
 
-			const dynamicImport = await import(path.toFileUrl(walkEntry.path).toString());
-			const page: Page = dynamicImport.default;
-			this.pages.push(page);
-		}
+		await Promise.all(entries.map(async (walkEntry) => {
+			const mod = await loadModuleWithDefine<{ default: Page }>(workspace, walkEntry.path, this.define);
+			this.pages.push(mod.default);
+		}));
 	}
 
 	public findPage(url: string): Page | null {

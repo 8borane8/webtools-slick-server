@@ -5,6 +5,8 @@ import type { VNode } from "preact";
 import * as path from "@std/path";
 import * as fs from "@std/fs";
 
+import { envToDefine, loadModuleWithDefine, SUPPORTED_EXTENSIONS } from "../utils/loader.ts";
+
 export interface Template {
 	readonly name: string;
 	readonly favicon: Render<string> | null;
@@ -18,20 +20,23 @@ export interface Template {
 	readonly onrequest: RequestListener | null;
 }
 
-const SUPPORTED_EXTENSIONS = [".tsx", ".ts", ".jsx", ".js"];
-
 export class TemplatesManager {
 	private readonly templates: Template[] = [];
+	private readonly define: Record<string, string>;
+
+	constructor(env: Record<string, string> = {}) {
+		this.define = envToDefine(env);
+	}
 
 	public async load(workspace: string): Promise<void> {
-		for (const walkEntry of fs.walkSync(path.join(workspace, "templates"), { includeDirs: false })) {
-			const ext = path.extname(walkEntry.name);
-			if (!SUPPORTED_EXTENSIONS.includes(ext)) continue;
+		const templatesDir = path.join(workspace, "templates");
+		const entries = [...fs.walkSync(templatesDir, { includeDirs: false })]
+			.filter((e) => SUPPORTED_EXTENSIONS.has(path.extname(e.name)));
 
-			const dynamicImport = await import(path.toFileUrl(walkEntry.path).toString());
-			const template: Template = dynamicImport.default;
-			this.templates.push(template);
-		}
+		await Promise.all(entries.map(async (walkEntry) => {
+			const mod = await loadModuleWithDefine<{ default: Template }>(workspace, walkEntry.path, this.define);
+			this.templates.push(mod.default);
+		}));
 	}
 
 	public findTemplate(name: string): Template | null {
