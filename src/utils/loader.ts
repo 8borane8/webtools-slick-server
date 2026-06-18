@@ -135,24 +135,6 @@ async function compileModuleToBlobUrl(
 	}
 }
 
-function buildClientEntry(
-	workspace: string,
-	filePath: string,
-	define: Record<string, string>,
-	sharedLibs: string[],
-): Promise<string> {
-	const isJsx = path.extname(filePath) === ".tsx" || path.extname(filePath) === ".jsx";
-
-	return bundle({
-		...BUNDLE,
-		...(isJsx ? JSX : {}),
-		entryPoints: [filePath],
-		define,
-		absWorkingDir: workspace,
-		plugins: clientPlugins(sharedLibs),
-	});
-}
-
 export function buildVendorBundle(
 	workspace: string,
 	lib: string,
@@ -180,7 +162,16 @@ export function buildIslandBundle(
 	sharedLibs: string[],
 	define: Record<string, string>,
 ): Promise<string> {
-	return buildClientEntry(workspace, filePath, define, sharedLibs);
+	const isJsx = path.extname(filePath) === ".tsx" || path.extname(filePath) === ".jsx";
+
+	return bundle({
+		...BUNDLE,
+		...(isJsx ? JSX : {}),
+		entryPoints: [filePath],
+		define,
+		absWorkingDir: workspace,
+		plugins: clientPlugins(sharedLibs),
+	});
 }
 
 export function buildStaticAsset(
@@ -189,7 +180,17 @@ export function buildStaticAsset(
 	define: Record<string, string>,
 	sharedLibs: string[] = [],
 ): Promise<string> {
-	return buildClientEntry(workspace, filePath, define, sharedLibs);
+	const isJsx = path.extname(filePath) === ".tsx" || path.extname(filePath) === ".jsx";
+
+	return bundle({
+		...BUNDLE,
+		...(isJsx ? JSX : {}),
+		bundle: false,
+		entryPoints: [filePath],
+		define,
+		absWorkingDir: workspace,
+		plugins: clientPlugins(sharedLibs),
+	});
 }
 
 export async function loadModuleWithDefine<T>(
