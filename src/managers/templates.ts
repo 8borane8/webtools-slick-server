@@ -6,6 +6,7 @@ import * as path from "@std/path";
 import * as fs from "@std/fs";
 
 import { envToDefine, loadModuleWithDefine, SUPPORTED_EXTENSIONS } from "../utils/loader.ts";
+import type { Config } from "../core/server.ts";
 
 export interface Template {
 	readonly name: string;
@@ -24,8 +25,8 @@ export class TemplatesManager {
 	private readonly templates: Template[] = [];
 	private readonly define: Record<string, string>;
 
-	constructor(env: Record<string, string> = {}) {
-		this.define = envToDefine(env);
+	constructor(config: Config) {
+		this.define = envToDefine(config.env);
 	}
 
 	public async load(workspace: string): Promise<void> {

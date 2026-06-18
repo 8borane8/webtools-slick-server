@@ -3,6 +3,7 @@ import type { Config } from "../core/server.ts";
 
 export class VendorsManager {
 	private readonly bundles = new Map<string, string>();
+
 	private readonly sharedLibs: string[];
 	private readonly define: Record<string, string>;
 

@@ -9,6 +9,8 @@ import { Router } from "./router.ts";
 import * as path from "@std/path";
 import * as fs from "@std/fs";
 
+import { CLIENT_LIB, DEFAULT_SHARED_LIBS } from "../utils/shared-libs.ts";
+
 export interface Config {
 	readonly env: Record<string, string>;
 	readonly port: number;
@@ -19,16 +21,6 @@ export interface Config {
 	readonly trustProxy: boolean;
 	readonly sharedLibs: string[];
 }
-
-const SHARED_LIBS = [
-	"preact",
-	"preact/hooks",
-	"preact/jsx-runtime",
-	"preact-root-fragment",
-	"@preact/signals",
-];
-
-const CLIENT_LIB = "@webtools/slick-client";
 
 export class Slick {
 	private static readonly requiredDirectories: Array<string> = ["templates", "static", "pages"];
@@ -43,7 +35,7 @@ export class Slick {
 
 	constructor(private readonly workspace: string, config: Partial<Config>) {
 		const sharedLibs = [
-			...SHARED_LIBS,
+			...DEFAULT_SHARED_LIBS,
 			...(config.client ? [CLIENT_LIB] : []),
 			...(config.sharedLibs || []),
 		];
@@ -61,8 +53,8 @@ export class Slick {
 
 		this.vendorsManager = new VendorsManager(this.config);
 		this.islandsManager = new IslandsManager(this.config);
-		this.templatesManager = new TemplatesManager(this.config.env);
-		this.pagesManager = new PagesManager(this.config.env);
+		this.templatesManager = new TemplatesManager(this.config);
+		this.pagesManager = new PagesManager(this.config);
 	}
 
 	public async start(): Promise<void> {
@@ -87,7 +79,7 @@ export class Slick {
 			this.pagesManager,
 			this.vendorsManager,
 			this.islandsManager,
-			new AssetsManager(this.workspace, this.config.env, this.config.noCache),
+			new AssetsManager(this.workspace, this.config),
 		);
 
 		this.router.start();

@@ -3,6 +3,7 @@ import * as path from "@std/path";
 import * as fs from "@std/fs";
 
 import { buildStaticAsset, envToDefine } from "../utils/loader.ts";
+import type { Config } from "../core/server.ts";
 
 const CONTENT_TYPES: Record<string, string> = {
 	js: "text/javascript",
@@ -11,18 +12,26 @@ const CONTENT_TYPES: Record<string, string> = {
 };
 
 export class AssetsManager {
-	private readonly workspace: string;
 	private readonly staticPath: string;
-	private readonly define: Record<string, string>;
 	private readonly cache = new Map<string, string>();
 
-	constructor(workspace: string, env: Record<string, string> = {}, private readonly noCache = false) {
+	private readonly workspace: string;
+	private readonly sharedLibs: string[];
+	private readonly define: Record<string, string>;
+	private readonly noCache: boolean;
+
+	constructor(
+		workspace: string,
+		config: Config,
+	) {
 		this.workspace = path.resolve(workspace);
 		this.staticPath = path.resolve(path.join(this.workspace, "static"));
-		this.define = envToDefine(env);
+		this.define = envToDefine(config.env);
+		this.sharedLibs = config.sharedLibs;
+		this.noCache = config.noCache;
 	}
 
-	public serve(req: HttpRequest, res: HttpResponse): Promise<Response> | Response | void {
+	public async serve(req: HttpRequest, res: HttpResponse): Promise<Response | void> {
 		const filePath = path.resolve(path.join(this.staticPath, req.url));
 		if (!filePath.startsWith(this.staticPath)) return;
 		if (!fs.existsSync(filePath) || !Deno.statSync(filePath).isFile) return;
@@ -37,7 +46,7 @@ export class AssetsManager {
 			if (cached) return res.setHeader("Content-Type", contentType).size(cached.length).send(cached);
 		}
 
-		const output = buildStaticAsset(this.workspace, filePath, this.define);
+		const output = await buildStaticAsset(this.workspace, filePath, this.define, this.sharedLibs);
 
 		if (!this.noCache) this.cache.set(filePath, output);
 		return res.setHeader("Content-Type", contentType).size(output.length).send(output);
