@@ -139,8 +139,8 @@ export async function loadModuleWithDefine<T>(
 		define,
 		absWorkingDir: workspace,
 		plugins: [
-			externalizeRelativeImportsPlugin(),
 			denoPlugin(),
+			externalizeRelativeImportsPlugin(),
 		],
 	});
 
