@@ -2,7 +2,15 @@ import type { ComponentType } from "preact";
 import * as path from "@std/path";
 import * as fs from "@std/fs";
 
-import { buildIslandBundle, envToDefine, loadModuleWithDefine, SUPPORTED_EXTENSIONS } from "../utils/loader.ts";
+import {
+	buildIslandBundle,
+	envToDefine,
+	invalidateModuleCache,
+	loadModuleWithDefine,
+	SUPPORTED_EXTENSIONS,
+} from "../utils/loader.ts";
+
+import { watchDirectory } from "../utils/watch.ts";
 import type { Config } from "../core/server.ts";
 
 export interface IslandInfo {
@@ -12,41 +20,54 @@ export interface IslandInfo {
 }
 
 export class IslandsManager {
-	private readonly registry = new Map<ComponentType, string>();
-	private readonly byName = new Map<string, IslandInfo>();
-
+	private readonly islandsDir: string;
 	private readonly sharedLibs: string[];
 	private readonly define: Record<string, string>;
+	private readonly hotReload: boolean;
 
-	constructor(config: Config) {
+	private readonly registry = new Map<ComponentType, string>();
+	private readonly islands = new Map<string, IslandInfo>();
+
+	constructor(private readonly workspace: string, config: Config) {
+		this.islandsDir = path.join(this.workspace, "islands");
 		this.sharedLibs = config.sharedLibs;
 		this.define = envToDefine(config.env);
+		this.hotReload = config.hotReload;
 	}
 
-	public async load(workspace: string): Promise<void> {
-		const islandsDir = path.join(workspace, "islands");
-		if (!fs.existsSync(islandsDir)) return;
+	private async loadFile(filePath: string): Promise<void> {
+		const name = path.relative(this.islandsDir, filePath).replaceAll("\\", "/");
+		for (const [component, islandName] of this.registry) {
+			if (islandName === name) {
+				this.registry.delete(component);
+				break;
+			}
+		}
 
-		const entries = [...fs.walkSync(islandsDir, { includeDirs: false })]
+		invalidateModuleCache(filePath);
+
+		const [mod, bundle] = await Promise.all([
+			loadModuleWithDefine<{ default: ComponentType }>(this.workspace, filePath, this.define),
+			buildIslandBundle(this.workspace, filePath, this.sharedLibs, this.define),
+		]);
+
+		const component: ComponentType = mod.default;
+		if (typeof component !== "function") {
+			throw new Error(`Island '${name}' must export a default function component.`);
+		}
+
+		this.islands.set(name, { name, filePath, bundle });
+		this.registry.set(component, name);
+	}
+
+	public async load(): Promise<void> {
+		if (!fs.existsSync(this.islandsDir)) return;
+
+		const entries = [...fs.walkSync(this.islandsDir, { includeDirs: false })]
 			.filter((e) => SUPPORTED_EXTENSIONS.has(path.extname(e.name)));
 
-		await Promise.all(entries.map(async (walkEntry) => {
-			const filePath = walkEntry.path;
-			const name = path.relative(islandsDir, filePath).replaceAll("\\", "/");
-
-			const [mod, bundle] = await Promise.all([
-				loadModuleWithDefine<{ default: ComponentType }>(workspace, filePath, this.define),
-				buildIslandBundle(workspace, filePath, this.sharedLibs, this.define),
-			]);
-
-			const component: ComponentType = mod.default;
-			if (typeof component !== "function") {
-				throw new Error(`Island '${name}' must export a default function component.`);
-			}
-
-			this.byName.set(name, { name, filePath, bundle });
-			this.registry.set(component, name);
-		}));
+		await Promise.all(entries.map((e) => this.loadFile(e.path)));
+		if (this.hotReload) watchDirectory(this.islandsDir, (filePath) => this.loadFile(filePath));
 	}
 
 	public getRegistry(): Map<ComponentType, string> {
@@ -54,7 +75,7 @@ export class IslandsManager {
 	}
 
 	public findByName(name: string): IslandInfo | undefined {
-		return this.byName.get(name);
+		return this.islands.get(name);
 	}
 
 	public hasIslands(): boolean {

@@ -17,7 +17,7 @@ export interface Config {
 	readonly lang: string;
 	readonly r404: string;
 	readonly client: boolean;
-	readonly noCache: boolean;
+	readonly hotReload: boolean;
 	readonly trustProxy: boolean;
 	readonly sharedLibs: string[];
 }
@@ -46,25 +46,25 @@ export class Slick {
 			lang: config.lang || "en",
 			r404: config.r404 || "/",
 			client: config.client || false,
-			noCache: config.noCache || false,
+			hotReload: config.hotReload || false,
 			trustProxy: config.trustProxy || false,
 			sharedLibs: [...new Set(sharedLibs)],
 		};
 
-		this.vendorsManager = new VendorsManager(this.config);
-		this.islandsManager = new IslandsManager(this.config);
-		this.templatesManager = new TemplatesManager(this.config);
-		this.pagesManager = new PagesManager(this.config);
+		this.vendorsManager = new VendorsManager(this.workspace, this.config);
+		this.islandsManager = new IslandsManager(this.workspace, this.config);
+		this.templatesManager = new TemplatesManager(this.workspace, this.config);
+		this.pagesManager = new PagesManager(this.workspace, this.config);
 	}
 
 	public async start(): Promise<void> {
 		this.preventConfigurationErrors();
 
 		await Promise.all([
-			this.vendorsManager.load(this.workspace),
-			this.islandsManager.load(this.workspace),
-			this.templatesManager.load(this.workspace),
-			this.pagesManager.load(this.workspace),
+			this.vendorsManager.load(),
+			this.islandsManager.load(),
+			this.templatesManager.load(),
+			this.pagesManager.load(),
 		]);
 
 		if (this.islandsManager.hasIslands()) {

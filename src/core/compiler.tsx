@@ -22,6 +22,8 @@ function injectPage(node: any, page: VNode | null): any {
 		return { ...node, props: { ...props, children: page } };
 	}
 
+	if (!props) return node;
+
 	const { children } = props;
 	if (!children) return node;
 

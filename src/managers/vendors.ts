@@ -2,26 +2,26 @@ import { buildVendorBundle, envToDefine } from "../utils/loader.ts";
 import type { Config } from "../core/server.ts";
 
 export class VendorsManager {
-	private readonly bundles = new Map<string, string>();
-
 	private readonly sharedLibs: string[];
 	private readonly define: Record<string, string>;
 
-	constructor(config: Config) {
+	private readonly bundles = new Map<string, string>();
+
+	constructor(private readonly workspace: string, config: Config) {
 		this.sharedLibs = config.sharedLibs;
 		this.define = envToDefine(config.env);
 	}
 
-	public async load(workspace: string): Promise<void> {
+	public async load(): Promise<void> {
 		await Promise.all(
 			this.sharedLibs.map(async (lib) => {
-				const bundle = await buildVendorBundle(workspace, lib, this.sharedLibs, this.define);
+				const bundle = await buildVendorBundle(this.workspace, lib, this.sharedLibs, this.define);
 				this.bundles.set(lib, bundle);
 			}),
 		);
 	}
 
-	public findBundle(lib: string): string | undefined {
+	public findVendor(lib: string): string | undefined {
 		return this.bundles.get(lib);
 	}
 

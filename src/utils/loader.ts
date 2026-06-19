@@ -193,6 +193,18 @@ export function buildStaticAsset(
 	});
 }
 
+export function invalidateModuleCache(filePath: string): void {
+	const source = path.resolve(filePath);
+	const url = blobCache.get(source);
+
+	if (url) {
+		URL.revokeObjectURL(url);
+		blobCache.delete(source);
+	}
+
+	compiling.delete(source);
+}
+
 export async function loadModuleWithDefine<T>(
 	workspace: string,
 	filePath: string,

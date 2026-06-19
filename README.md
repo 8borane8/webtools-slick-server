@@ -26,7 +26,9 @@
 - **Islands architecture** Ship static HTML by default, then hydrate only the interactive components you mark as
   _islands_.
 - **Zero-config asset pipeline** CSS, JS and TS files in `static/` are transpiled and minified on the fly with esbuild,
-  then cached.
+  then cached in production.
+- **Hot reload** Optional dev mode that watches `pages/`, `templates/` and `islands/` and reloads changed files without
+  restarting the server.
 - **SPA navigation** Optional client mode (`@webtools/slick-client`) swaps pages over `fetch` without full reloads,
   while keeping SSR for the first request.
 - **Bring your own npm libraries** Use any npm/JSR package inside islands through automatic, shared, deduplicated vendor
@@ -41,6 +43,7 @@
 - [Quick Start](#-quick-start)
 - [Project Structure](#-project-structure)
 - [Configuration](#-configuration)
+- [Hot Reload](#-hot-reload)
 - [Environment Variables](#-environment-variables)
 - [Templates](#-templates)
 - [Pages](#-pages)
@@ -154,6 +157,7 @@ const app = new Slick(import.meta.dirname!, {
 	lang: "en",
 	r404: "/",
 	client: true, // Enable SPA navigation
+	hotReload: true, // Reload pages, templates and islands on file change
 });
 
 await app.start();
@@ -273,7 +277,7 @@ interface Config {
 	lang: string; // <html lang="..."> attribute
 	r404: string; // Fallback URL when no route/asset matches
 	client: boolean; // SPA mode: adds @webtools/slick-client as a shared vendor
-	noCache: boolean; // Disable the compiled-asset in-memory cache
+	hotReload: boolean; // Dev mode: reload pages, templates, islands and static assets on change
 	trustProxy: boolean; // Trust X-Forwarded-* headers (behind a reverse proxy)
 	sharedLibs: string[]; // Extra libraries made available to islands
 }
@@ -288,9 +292,38 @@ interface Config {
 | `lang`       | `string`                 | `"en"`  | Value of the HTML `lang` attribute.                                                                                                                                                                     |
 | `r404`       | `string`                 | `"/"`   | Page URL to redirect to when a route or asset is not found. **Must match an existing page.**                                                                                                            |
 | `client`     | `boolean`                | `false` | When `true`, enables SPA navigation via `@webtools/slick-client`, bundled as a shared vendor and exposed through the import map.                                                                        |
-| `noCache`    | `boolean`                | `false` | When `true`, compiled assets are recompiled on every request (useful during development).                                                                                                               |
+| `hotReload`  | `boolean`                | `false` | When `true`, enables development hot reload. See [Hot Reload](#-hot-reload).                                                                                                                            |
 | `trustProxy` | `boolean`                | `false` | Forwarded to the underlying HTTP server to honor proxy headers (real client IP, protocol, etc.).                                                                                                        |
 | `sharedLibs` | `string[]`               | `[]`    | Libraries bundled once globally and shared across all islands (avoids duplicating them in every island bundle). Merged with the built-in Preact libs.                                                   |
+
+## 🔥 Hot Reload
+
+Set `hotReload: true` during development to pick up file changes without restarting the server.
+
+```ts
+const app = new Slick(import.meta.dirname!, {
+	hotReload: Deno.env.get("DENO_ENV") !== "production",
+});
+```
+
+When enabled, Slick:
+
+| Watched directory | On create / modify                                                |
+| ----------------- | ----------------------------------------------------------------- |
+| `pages/`          | Reloads the page module and updates the in-memory registry.       |
+| `templates/`      | Reloads the template module and updates the in-memory registry.   |
+| `islands/`        | Reloads the island module and rebuilds its client bundle.         |
+| `static/`         | Recompiles CSS/JS/TS on every request (in-memory cache disabled). |
+
+Changes are visible on the next HTTP request. Pages and templates are resolved fresh on every request, so updated
+handlers, middleware and rendered content take effect immediately.
+
+> **Restart still required when:**
+>
+> - you add a page with a **new URL** (routes are registered once at startup),
+> - you change `config.env`, `port`, `sharedLibs`, or other server options,
+> - you change a shared module **outside** the watched directories (touch the importing page/template/island to reload
+>   it).
 
 ## 🔑 Environment Variables
 
@@ -342,7 +375,7 @@ export default function Status() {
 console.log("API:", API_URL);
 ```
 
-Values are baked in when Slick loads your project (pages, templates, islands) or when an asset is first compiled. Change
+Values are baked in when Slick compiles a module (at startup, on hot reload, or when a static asset is served). Change
 `config.env` and restart the server to pick up new values.
 
 ## 🎨 Templates
@@ -509,8 +542,8 @@ traversal outside `static/` is blocked.
 | `.js` / `.ts`   | Transpiled (TS → JS), minified, served as ES modules (`text/javascript`). |
 | Everything else | Served as-is (images, fonts, JSON, etc.).                                 |
 
-Compiled CSS/JS/TS results are cached in memory after the first request. Set `noCache: true` to recompile on every
-request during development.
+Compiled CSS/JS/TS results are cached in memory after the first request. With `hotReload: true`, static assets are
+recompiled on every request instead.
 
 > Static scripts also receive `config.env` values — see [Environment Variables](#-environment-variables).
 

@@ -5,7 +5,8 @@ import type { VNode } from "preact";
 import * as path from "@std/path";
 import * as fs from "@std/fs";
 
-import { envToDefine, loadModuleWithDefine, SUPPORTED_EXTENSIONS } from "../utils/loader.ts";
+import { envToDefine, invalidateModuleCache, loadModuleWithDefine, SUPPORTED_EXTENSIONS } from "../utils/loader.ts";
+import { watchDirectory } from "../utils/watch.ts";
 import type { Config } from "../core/server.ts";
 
 export interface Template {
@@ -22,29 +23,33 @@ export interface Template {
 }
 
 export class TemplatesManager {
-	private readonly templates: Template[] = [];
+	private readonly templatesDir: string;
 	private readonly define: Record<string, string>;
+	private readonly hotReload: boolean;
+	private readonly templates = new Map<string, Template>();
 
-	constructor(config: Config) {
+	constructor(private readonly workspace: string, config: Config) {
+		this.templatesDir = path.join(this.workspace, "templates");
 		this.define = envToDefine(config.env);
+		this.hotReload = config.hotReload;
 	}
 
-	public async load(workspace: string): Promise<void> {
-		const templatesDir = path.join(workspace, "templates");
-		const entries = [...fs.walkSync(templatesDir, { includeDirs: false })]
+	public async load(): Promise<void> {
+		const entries = [...fs.walkSync(this.templatesDir, { includeDirs: false })]
 			.filter((e) => SUPPORTED_EXTENSIONS.has(path.extname(e.name)));
 
-		await Promise.all(entries.map(async (walkEntry) => {
-			const mod = await loadModuleWithDefine<{ default: Template }>(workspace, walkEntry.path, this.define);
-			this.templates.push(mod.default);
-		}));
+		await Promise.all(entries.map((e) => this.loadFile(e.path)));
+		if (this.hotReload) watchDirectory(this.templatesDir, (filePath) => this.loadFile(filePath));
 	}
 
-	public findTemplate(name: string): Template | null {
-		return this.templates.find((template) => template.name === name) || null;
+	private async loadFile(filePath: string): Promise<void> {
+		invalidateModuleCache(filePath);
+
+		const mod = await loadModuleWithDefine<{ default: Template }>(this.workspace, filePath, this.define);
+		this.templates.set(mod.default.name, mod.default);
 	}
 
-	public getTemplates(): Template[] {
-		return this.templates;
+	public findTemplate(name: string): Template | undefined {
+		return this.templates.get(name);
 	}
 }

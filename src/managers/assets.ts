@@ -18,7 +18,7 @@ export class AssetsManager {
 	private readonly workspace: string;
 	private readonly sharedLibs: string[];
 	private readonly define: Record<string, string>;
-	private readonly noCache: boolean;
+	private readonly hotReload: boolean;
 
 	constructor(
 		workspace: string,
@@ -28,7 +28,7 @@ export class AssetsManager {
 		this.staticPath = path.resolve(path.join(this.workspace, "static"));
 		this.define = envToDefine(config.env);
 		this.sharedLibs = config.sharedLibs;
-		this.noCache = config.noCache;
+		this.hotReload = config.hotReload;
 	}
 
 	public async serve(req: HttpRequest, res: HttpResponse): Promise<Response | void> {
@@ -41,14 +41,14 @@ export class AssetsManager {
 
 		if (!contentType) return res.sendFile(filePath);
 
-		if (!this.noCache) {
+		if (!this.hotReload) {
 			const cached = this.cache.get(filePath);
 			if (cached) return res.setHeader("Content-Type", contentType).size(cached.length).send(cached);
 		}
 
 		const output = await buildStaticAsset(this.workspace, filePath, this.define, this.sharedLibs);
 
-		if (!this.noCache) this.cache.set(filePath, output);
+		if (!this.hotReload) this.cache.set(filePath, output);
 		return res.setHeader("Content-Type", contentType).size(output.length).send(output);
 	}
 }

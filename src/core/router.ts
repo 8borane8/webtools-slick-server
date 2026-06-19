@@ -5,6 +5,7 @@ import type { Page, PagesManager } from "../managers/pages.ts";
 import type { IslandsManager } from "../managers/islands.ts";
 import type { VendorsManager } from "../managers/vendors.ts";
 import type { AssetsManager } from "../managers/assets.ts";
+
 import type { Config } from "./server.ts";
 import { Compiler } from "./compiler.tsx";
 
@@ -46,32 +47,38 @@ export class Router {
 			}
 		});
 
-		for (const page of this.pagesManager.getPages()) {
-			const template = this.templatesManager.findTemplate(page.template)!;
-			const middlewares = [template.onrequest, page.onrequest].filter((m) => m != null);
-
-			this.httpServer.get(page.url, (req, res) => this.getRequestListener(req, res, page), middlewares);
-			this.httpServer.post(page.url, (req, res) => this.postRequestListener(req, res, page, middlewares));
+		for (const { url } of this.pagesManager.getPages()) {
+			this.httpServer.get(url, (req, res) => this.onGet(req, res, url));
+			this.httpServer.post(url, (req, res) => this.onPost(req, res, url));
 		}
 
 		this.httpServer.notFound(this.requestListener.bind(this));
 		this.httpServer.listen(this.config.port);
 	}
 
-	private async getRequestListener(req: HttpRequest, res: HttpResponse, page: Page): Promise<Response> {
+	private middlewares(page: Page): RequestListener[] {
+		const template = this.templatesManager.findTemplate(page.template)!;
+		return [template.onrequest, page.onrequest].filter((m) => m != null);
+	}
+
+	private async onGet(req: HttpRequest, res: HttpResponse, url: string): Promise<Response> {
+		const page = this.pagesManager.findPage(url)!;
+
+		for (const middleware of this.middlewares(page)) {
+			const result = await middleware(req, res);
+			if (result) return result;
+		}
+
 		const template = this.templatesManager.findTemplate(page.template)!;
 		const dom = await this.compiler.createDOM(req, template, page);
 		return res.type("html").send(dom);
 	}
 
-	private async postRequestListener(
-		req: HttpRequest,
-		res: HttpResponse,
-		page: Page,
-		middlewares: RequestListener[],
-	): Promise<Response | void> {
+	private async onPost(req: HttpRequest, res: HttpResponse, url: string): Promise<Response | void> {
+		const page = this.pagesManager.findPage(url)!;
+
 		if (this.config.client && req.headers.has("x-slick-template")) {
-			for (const middleware of middlewares) {
+			for (const middleware of this.middlewares(page)) {
 				const result = await middleware(req, res);
 				if (result) return result;
 			}
@@ -89,17 +96,17 @@ export class Router {
 
 		if (req.url.startsWith(VENDOR_PREFIX)) {
 			const lib = vendorUrlToLib(req.url);
-			const bundle = this.vendorsManager.findBundle(lib);
-
+			const bundle = this.vendorsManager.findVendor(lib);
 			if (!bundle) return res.redirect(this.config.r404);
+
 			return res.setHeader("Content-Type", "text/javascript").size(bundle.length).send(bundle);
 		}
 
 		if (req.url.startsWith(ISLAND_PREFIX) && this.islandsManager.hasIslands()) {
 			const name = islandUrlToName(req.url);
 			const info = this.islandsManager.findByName(name);
-
 			if (!info) return res.redirect(this.config.r404);
+
 			return res.setHeader("Content-Type", "text/javascript").size(info.bundle.length).send(info.bundle);
 		}
 
