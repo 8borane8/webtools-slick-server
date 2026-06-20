@@ -74,6 +74,7 @@ export class Slick {
 			this.islandsManager.onReload = async () => {
 				await this.templatesManager.reloadAll();
 				await this.pagesManager.reloadAll();
+				this.router.reloadAll();
 			};
 
 			this.pagesManager.onReload = () => this.router.reloadAll();
