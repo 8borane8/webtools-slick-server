@@ -28,6 +28,8 @@ export class IslandsManager {
 	private readonly registry = new Map<ComponentType, string>();
 	private readonly islands = new Map<string, IslandInfo>();
 
+	onReload?: () => Promise<void> | void;
+
 	constructor(private readonly workspace: string, config: Config) {
 		this.islandsDir = path.join(this.workspace, "islands");
 		this.sharedLibs = config.sharedLibs;
@@ -37,6 +39,7 @@ export class IslandsManager {
 
 	private async loadFile(filePath: string): Promise<void> {
 		const name = path.relative(this.islandsDir, filePath).replaceAll("\\", "/");
+
 		for (const [component, islandName] of this.registry) {
 			if (islandName === name) {
 				this.registry.delete(component);
@@ -60,14 +63,25 @@ export class IslandsManager {
 		this.registry.set(component, name);
 	}
 
-	public async load(): Promise<void> {
-		if (!fs.existsSync(this.islandsDir)) return;
-
+	public async reloadAll(): Promise<void> {
 		const entries = [...fs.walkSync(this.islandsDir, { includeDirs: false })]
 			.filter((e) => SUPPORTED_EXTENSIONS.has(path.extname(e.name)));
 
+		this.islands.clear();
+		this.registry.clear();
 		await Promise.all(entries.map((e) => this.loadFile(e.path)));
-		if (this.hotReload) watchDirectory(this.islandsDir, (filePath) => this.loadFile(filePath));
+	}
+
+	public async load(): Promise<void> {
+		if (!fs.existsSync(this.islandsDir)) return;
+
+		await this.reloadAll();
+		if (this.hotReload) {
+			watchDirectory(this.islandsDir, async (filePath) => {
+				await this.loadFile(filePath);
+				await this.onReload?.();
+			});
+		}
 	}
 
 	public getRegistry(): Map<ComponentType, string> {

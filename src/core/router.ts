@@ -33,6 +33,14 @@ export class Router {
 		this.compiler = new Compiler(this.config, vendorsManager, islandsManager);
 	}
 
+	public reloadAll(): void {
+		this.httpServer.routes.clear();
+		for (const page of this.pagesManager.getPages()) {
+			this.httpServer.get(page.url, (req, res) => this.onGet(req, res, page));
+			this.httpServer.post(page.url, (req, res) => this.onPost(req, res, page));
+		}
+	}
+
 	public start(): void {
 		this.httpServer.use((req, res) => {
 			res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -47,11 +55,7 @@ export class Router {
 			}
 		});
 
-		for (const { url } of this.pagesManager.getPages()) {
-			this.httpServer.get(url, (req, res) => this.onGet(req, res, url));
-			this.httpServer.post(url, (req, res) => this.onPost(req, res, url));
-		}
-
+		this.reloadAll();
 		this.httpServer.notFound(this.requestListener.bind(this));
 		this.httpServer.listen(this.config.port);
 	}
@@ -61,9 +65,7 @@ export class Router {
 		return [template.onrequest, page.onrequest].filter((m) => m != null);
 	}
 
-	private async onGet(req: HttpRequest, res: HttpResponse, url: string): Promise<Response> {
-		const page = this.pagesManager.findPage(url)!;
-
+	private async onGet(req: HttpRequest, res: HttpResponse, page: Page): Promise<Response> {
 		for (const middleware of this.middlewares(page)) {
 			const result = await middleware(req, res);
 			if (result) return result;
@@ -74,9 +76,7 @@ export class Router {
 		return res.type("html").send(dom);
 	}
 
-	private async onPost(req: HttpRequest, res: HttpResponse, url: string): Promise<Response | void> {
-		const page = this.pagesManager.findPage(url)!;
-
+	private async onPost(req: HttpRequest, res: HttpResponse, page: Page): Promise<Response | void> {
 		if (this.config.client && req.headers.has("x-slick-template")) {
 			for (const middleware of this.middlewares(page)) {
 				const result = await middleware(req, res);

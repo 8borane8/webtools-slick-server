@@ -34,19 +34,24 @@ export class TemplatesManager {
 		this.hotReload = config.hotReload;
 	}
 
-	public async load(): Promise<void> {
-		const entries = [...fs.walkSync(this.templatesDir, { includeDirs: false })]
-			.filter((e) => SUPPORTED_EXTENSIONS.has(path.extname(e.name)));
-
-		await Promise.all(entries.map((e) => this.loadFile(e.path)));
-		if (this.hotReload) watchDirectory(this.templatesDir, (filePath) => this.loadFile(filePath));
-	}
-
 	private async loadFile(filePath: string): Promise<void> {
 		invalidateModuleCache(filePath);
 
 		const mod = await loadModuleWithDefine<{ default: Template }>(this.workspace, filePath, this.define);
 		this.templates.set(mod.default.name, mod.default);
+	}
+
+	public async reloadAll(): Promise<void> {
+		const entries = [...fs.walkSync(this.templatesDir, { includeDirs: false })]
+			.filter((e) => SUPPORTED_EXTENSIONS.has(path.extname(e.name)));
+
+		this.templates.clear();
+		await Promise.all(entries.map((e) => this.loadFile(e.path)));
+	}
+
+	public async load(): Promise<void> {
+		await this.reloadAll();
+		if (this.hotReload) watchDirectory(this.templatesDir, (filePath) => this.loadFile(filePath));
 	}
 
 	public findTemplate(name: string): Template | undefined {

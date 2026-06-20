@@ -1,12 +1,12 @@
 {
 	"name": "@webtools/slick-server",
 	"exports": "./src/mod.ts",
-	"version": "0.6.25",
+	"version": "0.6.26",
 	"license": "MIT",
 
 	"lock": false,
 	"imports": {
-		"@webtools/expressapi": "jsr:@webtools/expressapi@^0.8.1",
+		"@webtools/expressapi": "jsr:@webtools/expressapi@^0.8.11",
 		"@std/path": "jsr:@std/path@^1.1.5",
 		"@std/fs": "jsr:@std/fs@^1.0.24",
 

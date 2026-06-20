@@ -31,18 +31,12 @@ export class PagesManager {
 
 	private readonly pages = new Map<string, Page>();
 
+	onReload?: () => Promise<void> | void;
+
 	constructor(private readonly workspace: string, config: Config) {
 		this.pagesDir = path.join(this.workspace, "pages");
 		this.define = envToDefine(config.env);
 		this.hotReload = config.hotReload;
-	}
-
-	public async load(): Promise<void> {
-		const entries = [...fs.walkSync(this.pagesDir, { includeDirs: false })]
-			.filter((e) => SUPPORTED_EXTENSIONS.has(path.extname(e.name)));
-
-		await Promise.all(entries.map((e) => this.loadFile(e.path)));
-		if (this.hotReload) watchDirectory(this.pagesDir, (filePath) => this.loadFile(filePath));
 	}
 
 	private async loadFile(filePath: string): Promise<void> {
@@ -50,6 +44,24 @@ export class PagesManager {
 
 		const mod = await loadModuleWithDefine<{ default: Page }>(this.workspace, filePath, this.define);
 		this.pages.set(mod.default.url, mod.default);
+	}
+
+	public async reloadAll(): Promise<void> {
+		const entries = [...fs.walkSync(this.pagesDir, { includeDirs: false })]
+			.filter((e) => SUPPORTED_EXTENSIONS.has(path.extname(e.name)));
+
+		this.pages.clear();
+		await Promise.all(entries.map((e) => this.loadFile(e.path)));
+	}
+
+	public async load(): Promise<void> {
+		await this.reloadAll();
+		if (this.hotReload) {
+			watchDirectory(this.pagesDir, async (filePath) => {
+				await this.loadFile(filePath);
+				await this.onReload?.();
+			});
+		}
 	}
 
 	public findPage(url: string): Page | undefined {

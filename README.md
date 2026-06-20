@@ -308,15 +308,15 @@ const app = new Slick(import.meta.dirname!, {
 
 When enabled, Slick:
 
-| Watched directory | On create / modify                                                |
-| ----------------- | ----------------------------------------------------------------- |
-| `pages/`          | Reloads the page module and updates the in-memory registry.       |
-| `templates/`      | Reloads the template module and updates the in-memory registry.   |
-| `islands/`        | Reloads the island module and rebuilds its client bundle.         |
-| `static/`         | Recompiles CSS/JS/TS on every request (in-memory cache disabled). |
+| Watched directory | On create / modify                                                                                                    |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `pages/`          | Reloads the page module and updates the in-memory registry.                                                           |
+| `templates/`      | Reloads the template module and updates the in-memory registry.                                                       |
+| `islands/`        | Reloads the island, rebuilds its client bundle, then reloads all pages and templates (they import island components). |
+| `static/`         | Recompiles CSS/JS/TS on every request (in-memory cache disabled).                                                     |
 
-Changes are visible on the next HTTP request. Pages and templates are resolved fresh on every request, so updated
-handlers, middleware and rendered content take effect immediately.
+Changes are visible on the next HTTP request (refresh the browser to re-hydrate islands). Pages and templates are
+resolved fresh on every request, so updated handlers, middleware and rendered content take effect immediately.
 
 > **Restart still required when:**
 >

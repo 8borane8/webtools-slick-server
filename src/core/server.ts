@@ -29,9 +29,9 @@ export class Slick {
 	private readonly pagesManager: PagesManager;
 	private readonly vendorsManager: VendorsManager;
 	private readonly islandsManager: IslandsManager;
+	private readonly assetsManager: AssetsManager;
 	private readonly config: Config;
-
-	private router?: Router;
+	private readonly router: Router;
 
 	constructor(private readonly workspace: string, config: Partial<Config>) {
 		const sharedLibs = [
@@ -55,10 +55,29 @@ export class Slick {
 		this.islandsManager = new IslandsManager(this.workspace, this.config);
 		this.templatesManager = new TemplatesManager(this.workspace, this.config);
 		this.pagesManager = new PagesManager(this.workspace, this.config);
+		this.assetsManager = new AssetsManager(this.workspace, this.config);
+
+		this.router = new Router(
+			this.config,
+			this.templatesManager,
+			this.pagesManager,
+			this.vendorsManager,
+			this.islandsManager,
+			this.assetsManager,
+		);
 	}
 
 	public async start(): Promise<void> {
 		this.preventConfigurationErrors();
+
+		if (this.config.hotReload) {
+			this.islandsManager.onReload = async () => {
+				await this.templatesManager.reloadAll();
+				await this.pagesManager.reloadAll();
+			};
+
+			this.pagesManager.onReload = () => this.router.reloadAll();
+		}
 
 		await Promise.all([
 			this.vendorsManager.load(),
@@ -72,16 +91,6 @@ export class Slick {
 		}
 
 		this.preventErrors();
-
-		this.router = new Router(
-			this.config,
-			this.templatesManager,
-			this.pagesManager,
-			this.vendorsManager,
-			this.islandsManager,
-			new AssetsManager(this.workspace, this.config),
-		);
-
 		this.router.start();
 	}
 

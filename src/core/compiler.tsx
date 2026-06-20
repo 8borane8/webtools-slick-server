@@ -3,9 +3,9 @@ import { renderToString } from "preact-render-to-string";
 import type { HttpRequest } from "@webtools/expressapi";
 import type { VNode } from "preact";
 
-import type { IslandsManager } from "../managers/islands.ts";
-import type { VendorsManager } from "../managers/vendors.ts";
 import { ISLAND_HYDRATION_SCRIPT } from "../islands/hydration.ts";
+import type { VendorsManager } from "../managers/vendors.ts";
+import type { IslandsManager } from "../managers/islands.ts";
 import type { Template } from "../managers/templates.ts";
 import { libToVendorUrl } from "../utils/vendors.ts";
 import type { Page } from "../managers/pages.ts";
@@ -45,26 +45,11 @@ function injectPage(node: any, page: VNode | null): any {
 }
 
 export class Compiler {
-	private readonly importMap: string | null;
-	private readonly hasIslands: boolean;
-
 	constructor(
 		private readonly config: Config,
-		vendorsManager: VendorsManager,
-		islandsManager: IslandsManager,
-	) {
-		this.hasIslands = islandsManager.hasIslands();
-
-		const imports: Record<string, string> = {};
-
-		if (this.config.client || this.hasIslands) {
-			for (const lib of vendorsManager.getSharedLibs()) {
-				imports[lib] = libToVendorUrl(lib);
-			}
-		}
-
-		this.importMap = Object.keys(imports).length > 0 ? JSON.stringify({ imports }) : null;
-	}
+		private readonly vendorsManager: VendorsManager,
+		private readonly islandsManager: IslandsManager,
+	) {}
 
 	async compile<T>(req: HttpRequest, render: Render<T> | null): Promise<T | null> {
 		return render instanceof Function ? await render(req) : render;
@@ -83,6 +68,13 @@ export class Compiler {
 		const combinedBody = templateBody ? renderToString(injectPage(templateBody, pageBody)) : "";
 
 		const slickTypeAttr = (type: string) => this.config.client ? { "slick-type": type } : {};
+
+		const imports: Record<string, string> = {};
+		for (const lib of this.vendorsManager.getSharedLibs()) {
+			imports[lib] = libToVendorUrl(lib);
+		}
+
+		const importMap = Object.keys(imports).length > 0 ? JSON.stringify({ imports }) : null;
 
 		const html = renderToString(
 			<html lang={this.config.lang}>
@@ -106,7 +98,7 @@ export class Compiler {
 				<body>
 					<div id="root" dangerouslySetInnerHTML={{ __html: combinedBody }} />
 
-					{this.importMap && <script type="importmap" dangerouslySetInnerHTML={{ __html: this.importMap }} />}
+					{importMap && <script type="importmap" dangerouslySetInnerHTML={{ __html: importMap }} />}
 					{this.config.client && (
 						<script
 							type="module"
@@ -116,7 +108,7 @@ export class Compiler {
 							}}
 						/>
 					)}
-					{this.hasIslands && (
+					{this.islandsManager.hasIslands() && (
 						<script type="module" dangerouslySetInnerHTML={{ __html: ISLAND_HYDRATION_SCRIPT }} />
 					)}
 

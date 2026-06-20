@@ -26,7 +26,6 @@ export function watchDirectory(dir: string, onChange: (filePath: string) => void
 					resolved,
 					setTimeout(() => {
 						pending.delete(resolved);
-
 						Promise.resolve(onChange(resolved)).catch(console.error);
 					}, 50),
 				);
