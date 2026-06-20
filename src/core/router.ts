@@ -34,7 +34,7 @@ export class Router {
 	}
 
 	public reloadAll(): void {
-		this.httpServer.routes.clear();
+		this.httpServer.clearRoutes();
 		for (const page of this.pagesManager.getPages()) {
 			this.httpServer.get(page.url, (req, res) => this.onGet(req, res, page));
 			this.httpServer.post(page.url, (req, res) => this.onPost(req, res, page));
